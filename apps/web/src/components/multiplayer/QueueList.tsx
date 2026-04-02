@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import clsx from "clsx";
 import type { RoomPlayerDoc } from "../../features/rooms/types";
+import { TechPanel } from "../ui/TechPanel";
 
 interface QueueListProps {
   players: RoomPlayerDoc[];
@@ -10,10 +11,10 @@ interface QueueListProps {
 
 export function QueueList({ players, activePlayerUid, hostUid }: QueueListProps) {
   return (
-    <section className="rounded-xl border border-factory-line bg-factory-panel p-4" data-testid="queue-list">
+    <TechPanel data-testid="queue-list">
       <header className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-factory-muted">Queue</h2>
-        <span className="text-xs text-factory-muted">{players.length} players</span>
+        <h2 className="text-[10px] font-mono font-semibold uppercase tracking-[0.2em] text-white/55">Queue</h2>
+        <span className="font-mono text-xs text-white/55">{players.length} players</span>
       </header>
 
       <ul className="space-y-2">
@@ -26,25 +27,25 @@ export function QueueList({ players, activePlayerUid, hostUid }: QueueListProps)
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               className={clsx(
-                "flex items-center justify-between rounded-lg border px-3 py-2",
+                "tech-cut-reverse flex items-center justify-between border px-3 py-2",
                 player.uid === activePlayerUid
-                  ? "border-factory-neonCyan/80 bg-factory-neonCyan/10"
-                  : "border-factory-line bg-factory-panelSoft"
+                  ? "border-tech-blue/80 bg-tech-blue/10 shadow-neon"
+                  : "border-white/10 bg-base-700/70"
               )}
               data-testid={"queue-item-" + player.uid}
             >
               <div>
-                <p className="text-sm font-semibold text-factory-text">
+                <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white">
                   {index + 1}. {player.displayName}
                 </p>
-                <p className="text-xs text-factory-muted">
+                <p className="font-mono text-xs text-white/60">
                   {player.uid === hostUid ? "Host" : "Player"}
                   {player.isConnected ? " | Connected" : " | Disconnected"}
                 </p>
               </div>
 
               {player.uid === activePlayerUid ? (
-                <span className="rounded-full border border-factory-neonCyan/70 px-2 py-1 text-xs text-factory-neonCyan">
+                <span className="border border-tech-blue/70 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.15em] text-tech-blue">
                   Active
                 </span>
               ) : null}
@@ -52,6 +53,6 @@ export function QueueList({ players, activePlayerUid, hostUid }: QueueListProps)
           ))}
         </AnimatePresence>
       </ul>
-    </section>
+    </TechPanel>
   );
 }

@@ -1,4 +1,5 @@
 import type { LeaderboardEntry } from "../../features/rooms/types";
+import { TechPanel } from "../ui/TechPanel";
 
 interface LeaderboardTableProps {
   entries: LeaderboardEntry[];
@@ -14,14 +15,14 @@ function formatMs(value: number) {
 
 export function LeaderboardTable({ entries }: LeaderboardTableProps) {
   return (
-    <section className="overflow-hidden rounded-xl border border-factory-line bg-factory-panel" data-testid="leaderboard-table">
-      <header className="border-b border-factory-line px-4 py-3">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-factory-muted">Leaderboard</h2>
+    <TechPanel className="overflow-hidden p-0" data-testid="leaderboard-table">
+      <header className="border-b border-white/10 px-4 py-3">
+        <h2 className="text-[10px] font-mono font-semibold uppercase tracking-[0.2em] text-white/55">Leaderboard</h2>
       </header>
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[520px] text-left text-sm">
-          <thead className="text-factory-muted">
+          <thead className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/50">
             <tr>
               <th className="px-4 py-2">Rank</th>
               <th className="px-4 py-2">Player</th>
@@ -32,17 +33,17 @@ export function LeaderboardTable({ entries }: LeaderboardTableProps) {
           </thead>
           <tbody>
             {entries.map((entry) => (
-              <tr className="border-t border-factory-line" key={entry.uid}>
-                <td className="px-4 py-2 font-semibold text-factory-neonCyan">#{entry.rank}</td>
-                <td className="px-4 py-2 text-factory-text">{entry.displayName}</td>
-                <td className="px-4 py-2 text-factory-neonGreen">{entry.totalScore}</td>
-                <td className="px-4 py-2 text-factory-neonOrange">{formatMs(entry.avgResponseMs)}</td>
-                <td className="px-4 py-2 text-factory-text">{entry.accuracy.toFixed(1)}%</td>
+              <tr className="border-t border-white/10" key={entry.uid}>
+                <td className="px-4 py-2 font-semibold text-tech-blue">#{entry.rank}</td>
+                <td className="px-4 py-2 text-white">{entry.displayName}</td>
+                <td className="px-4 py-2 text-tech-green">{entry.totalScore}</td>
+                <td className="px-4 py-2 text-tech-orange">{formatMs(entry.avgResponseMs)}</td>
+                <td className="px-4 py-2 text-white">{entry.accuracy.toFixed(1)}%</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </section>
+    </TechPanel>
   );
 }

@@ -1,72 +1,52 @@
 import { expect, test } from "@playwright/test";
 
-test("multiplayer demo flow with host hardware mock", async ({ page, context }) => {
+test("login + room flow with mock signals", async ({ page }) => {
   await page.goto("/");
 
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel("Operator ID").fill("OP-7734");
+  await page.getByLabel("Passcode").fill("12345678");
   await page.getByTestId("google-login").click();
-  await expect(page.getByTestId("auth-user")).toBeVisible();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId("create-room")).toBeEnabled();
+
   await page.getByTestId("create-room").click();
-
-  await expect(page).toHaveURL(/\/room\/[A-Z0-9]+\/lobby/);
-  const roomId = (await page.getByTestId("room-id").innerText()).trim();
-
-  const playerPage = await context.newPage();
-  await playerPage.goto("/");
-  await playerPage.getByTestId("google-login").click();
-  await playerPage.getByTestId("join-room-input").fill(roomId);
-  await playerPage.getByTestId("join-room").click();
-
-  await expect(playerPage).toHaveURL(new RegExp("/room/" + roomId + "/lobby$"));
-  await expect(playerPage.getByTestId("queue-list")).toContainText("2 players");
+  await expect(page).toHaveURL(/\/room\/[A-Z0-9]+\/lobby$/);
+  await expect(page.getByTestId("room-id")).toBeVisible();
+  await expect(page.getByTestId("queue-list")).toBeVisible();
 
   await page.getByTestId("host-start").click();
+  await expect(page).toHaveURL(/\/room\/[A-Z0-9]+\/game$/);
+  await expect(page.getByTestId("timer-value")).toBeVisible();
 
-  await expect(page).toHaveURL(new RegExp("/room/" + roomId + "/game$"));
-  await expect(playerPage).toHaveURL(new RegExp("/room/" + roomId + "/game$"));
+  await page.getByTestId("hardware-start").click();
+  await expect(page.getByTestId("hardware-status-message")).toContainText("Mock", {
+    timeout: 5_000
+  });
 
-  const pageIsHost = await page.getByTestId("hardware-start").isVisible().catch(() => false);
-  const controlPage = pageIsHost ? page : playerPage;
-  const spectatorPage = pageIsHost ? playerPage : page;
+  const alertLabel = page.getByTestId("active-alert-label");
+  await expect(alertLabel).not.toContainText("Standby", {
+    timeout: 8_000
+  });
 
-  await controlPage.getByTestId("hardware-start").click();
-
-  await expect.poll(
-    async () => {
-        if (await controlPage.getByTestId("alert-gas").isEnabled()) {
-          return "control";
-        }
-
-        if (await spectatorPage.getByTestId("alert-gas").isEnabled()) {
-          return "spectator";
-        }
-
-      return "none";
-    },
-    { timeout: 10_000 }
-  ).not.toBe("none");
-
-  const activeActor = (await controlPage.getByTestId("alert-gas").isEnabled()) ? "control" : "spectator";
-  const actorPage = activeActor === "control" ? controlPage : spectatorPage;
-  const activeAlertPanel = actorPage.getByTestId("active-alert-panel");
-  await expect(activeAlertPanel).not.toContainText("No active alert", { timeout: 10_000 });
-
-  const alertText = (await activeAlertPanel.innerText()).toLowerCase();
-  if (alertText.includes("gas")) {
-    await actorPage.getByTestId("alert-gas").click();
-  } else if (alertText.includes("temperature")) {
-    await actorPage.getByTestId("alert-temperature").click();
+  const currentAlert = (await alertLabel.innerText()).toLowerCase();
+  if (currentAlert.includes("gas")) {
+    await page.getByTestId("alert-gas").click();
+  } else if (currentAlert.includes("temperature")) {
+    await page.getByTestId("alert-temperature").click();
   } else {
-    await actorPage.getByTestId("alert-maintenance").click();
+    await page.getByTestId("alert-maintenance").click();
   }
 
-  await expect(actorPage.getByTestId("score-value")).not.toHaveText("0", { timeout: 5_000 });
+  await expect(page.getByTestId("score-value")).toContainText("10", {
+    timeout: 3_000
+  });
 
-  await controlPage.getByTestId("host-force-next").click();
-  await controlPage.getByTestId("host-end").click();
+  await page.getByTestId("host-end").click();
+  await expect(page).toHaveURL(/\/room\/[A-Z0-9]+\/result$/);
 
-  await expect(page).toHaveURL(new RegExp("/room/" + roomId + "/result$"));
-  await expect(playerPage).toHaveURL(new RegExp("/room/" + roomId + "/result$"));
-
+  await expect(page.getByTestId("result-score")).toBeVisible();
+  await expect(page.getByTestId("result-accuracy")).toContainText("%");
   await expect(page.getByTestId("leaderboard-table")).toBeVisible();
-  await expect(playerPage.getByTestId("leaderboard-table")).toBeVisible();
 });

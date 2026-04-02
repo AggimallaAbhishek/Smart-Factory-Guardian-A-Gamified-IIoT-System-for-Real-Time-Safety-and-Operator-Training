@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import type { RoomPlayerDoc } from "../../features/rooms/types";
+import { TechPanel } from "../ui/TechPanel";
 
 interface PlayerCardProps {
   player: RoomPlayerDoc | null;
@@ -17,44 +18,44 @@ function formatMs(value: number) {
 export function PlayerCard({ player, isActivePlayer }: PlayerCardProps) {
   if (!player) {
     return (
-      <section className="rounded-xl border border-factory-line bg-factory-panelSoft p-4">
-        <p className="text-sm text-factory-muted">You are not part of this room.</p>
-      </section>
+      <TechPanel>
+        <p className="text-sm text-white/70">You are not part of this room.</p>
+      </TechPanel>
     );
   }
 
   return (
-    <section
+    <TechPanel
       className={clsx(
-        "rounded-xl border p-4",
+        "p-4",
         isActivePlayer
-          ? "border-factory-neonGreen/80 bg-factory-neonGreen/10"
-          : "border-factory-line bg-factory-panelSoft"
+          ? "border-tech-green/80 bg-tech-green/12 shadow-[0_0_24px_rgba(0,255,157,0.2)]"
+          : "border-white/10 bg-base-800/70"
       )}
       data-testid="player-card"
     >
-      <p className="text-xs uppercase tracking-[0.18em] text-factory-muted">Player</p>
-      <p className="mt-1 text-lg font-semibold text-factory-text">{player.displayName}</p>
-      <p className="text-sm text-factory-muted">{isActivePlayer ? "Your turn" : "Waiting in queue"}</p>
+      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/55">Player</p>
+      <p className="mt-1 text-lg font-semibold uppercase tracking-[0.08em] text-white">{player.displayName}</p>
+      <p className="text-sm text-white/70">{isActivePlayer ? "Your turn" : "Waiting in queue"}</p>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-        <div className="rounded-lg border border-factory-line bg-factory-panel px-2 py-2">
-          <p className="text-factory-muted">Score</p>
-          <p className="font-semibold text-factory-neonGreen">{player.totalScore}</p>
+        <div className="tech-cut-reverse border border-white/10 bg-base-700/70 px-2 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">Score</p>
+          <p className="font-semibold text-tech-green">{player.totalScore}</p>
         </div>
-        <div className="rounded-lg border border-factory-line bg-factory-panel px-2 py-2">
-          <p className="text-factory-muted">Accuracy</p>
-          <p className="font-semibold text-factory-neonCyan">{player.accuracy.toFixed(1)}%</p>
+        <div className="tech-cut-reverse border border-white/10 bg-base-700/70 px-2 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">Accuracy</p>
+          <p className="font-semibold text-tech-blue">{player.accuracy.toFixed(1)}%</p>
         </div>
-        <div className="rounded-lg border border-factory-line bg-factory-panel px-2 py-2">
-          <p className="text-factory-muted">Avg Response</p>
-          <p className="font-semibold text-factory-neonOrange">{formatMs(player.avgResponseMs)}</p>
+        <div className="tech-cut-reverse border border-white/10 bg-base-700/70 px-2 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">Avg Response</p>
+          <p className="font-semibold text-tech-orange">{formatMs(player.avgResponseMs)}</p>
         </div>
-        <div className="rounded-lg border border-factory-line bg-factory-panel px-2 py-2">
-          <p className="text-factory-muted">Turns</p>
-          <p className="font-semibold text-factory-text">{player.turnsPlayed}</p>
+        <div className="tech-cut-reverse border border-white/10 bg-base-700/70 px-2 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/55">Turns</p>
+          <p className="font-semibold text-white">{player.turnsPlayed}</p>
         </div>
       </div>
-    </section>
+    </TechPanel>
   );
 }

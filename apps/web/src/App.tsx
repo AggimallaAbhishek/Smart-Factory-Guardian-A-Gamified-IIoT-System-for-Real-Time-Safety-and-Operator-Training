@@ -1,13 +1,12 @@
 import { AnimatePresence } from "framer-motion";
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
-import { AuthProvider } from "./features/auth/AuthContext";
+import { AuthProvider, useAuthContext } from "./features/auth/AuthContext";
 import { GamePage } from "./pages/GamePage";
 import { HomePage } from "./pages/HomePage";
 import { LoginPage } from "./pages/LoginPage";
 import { LobbyPage } from "./pages/LobbyPage";
 import { ResultPage } from "./pages/ResultPage";
 import { RoomLayout } from "./pages/RoomLayout";
-import { useAuthContext } from "./features/auth/AuthContext";
 import { TerminalShell } from "./components/ui/TerminalShell";
 
 function RequireAuth() {

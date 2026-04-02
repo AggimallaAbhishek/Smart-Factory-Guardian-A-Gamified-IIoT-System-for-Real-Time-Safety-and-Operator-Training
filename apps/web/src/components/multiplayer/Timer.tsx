@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
+import { TechPanel } from "../ui/TechPanel";
 
 interface TimerProps {
   turnEndsAtMs: number | null;
@@ -30,18 +31,21 @@ export function Timer({ turnEndsAtMs }: TimerProps) {
   const urgent = remainingSec <= 10;
 
   return (
-    <section
-      className="rounded-xl border border-factory-line bg-factory-panelSoft p-4"
+    <TechPanel
       aria-label="Turn timer"
       data-testid="timer-panel"
+      className={urgent ? "border-tech-red/75 bg-tech-red/10" : undefined}
     >
-      <p className="text-xs uppercase tracking-[0.18em] text-factory-muted">Turn Timer</p>
+      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/55">Turn Timer</p>
       <p
         data-testid="timer-value"
-        className={clsx("mt-1 text-3xl font-bold tabular-nums sm:text-4xl", urgent ? "animate-timerUrgent" : "text-factory-text")}
+        className={clsx(
+          "mt-1 font-mono text-4xl font-bold tabular-nums tracking-[0.08em]",
+          urgent ? "animate-timerUrgent" : "text-white"
+        )}
       >
         {String(Math.floor(remainingSec / 60)).padStart(2, "0")}:{String(remainingSec % 60).padStart(2, "0")}
       </p>
-    </section>
+    </TechPanel>
   );
 }

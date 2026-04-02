@@ -12,3 +12,17 @@ packages/domain/src/**/*.js
 packages/protocol/src/**/*.js
 .DS_Store
 .env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+*service-account*.json
+secrets/

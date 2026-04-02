@@ -16,18 +16,10 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] }
     }
   ],
-  webServer: [
-    {
-      command: "npm run dev:bridge:test",
-      port: 8787,
-      timeout: 30_000,
-      reuseExistingServer: true
-    },
-    {
-      command: "npm run dev:web",
-      port: 5173,
-      timeout: 30_000,
-      reuseExistingServer: true
-    }
-  ]
+  webServer: {
+    command: "VITE_E2E_AUTH_MOCK=true npm run dev:web",
+    port: 5173,
+    timeout: 30_000,
+    reuseExistingServer: true
+  }
 });

@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { LeaderboardTable } from "../components/multiplayer/LeaderboardTable";
-import { TechActionButton } from "../components/ui/TechActionButton";
 import { TechPanel } from "../components/ui/TechPanel";
 import { TechStatCard } from "../components/ui/TechStatCard";
 import { useRoomContext } from "../features/rooms/RoomContext";
@@ -31,18 +30,29 @@ export function ResultPage() {
 
         {room.myPlayer ? (
           <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-            <TechStatCard label="Score" value={room.myPlayer.totalScore} color="green" />
-            <TechStatCard label="Accuracy" value={`${room.myPlayer.accuracy.toFixed(1)}%`} color="blue" />
-            <TechStatCard label="Avg Response" value={formatMs(room.myPlayer.avgResponseMs)} color="orange" />
+            <TechStatCard label="Score" value={room.myPlayer.totalScore} color="green" valueTestId="result-score" />
+            <TechStatCard
+              label="Accuracy"
+              value={`${room.myPlayer.accuracy.toFixed(1)}%`}
+              color="blue"
+              valueTestId="result-accuracy"
+            />
+            <TechStatCard
+              label="Avg Response"
+              value={formatMs(room.myPlayer.avgResponseMs)}
+              color="orange"
+              valueTestId="result-avg-response"
+            />
             <TechStatCard label="Turns Played" value={room.myPlayer.turnsPlayed} color="white" />
           </div>
         ) : null}
 
         <div className="mt-4">
-          <Link to="/">
-            <TechActionButton tone="blue" className="w-full sm:w-auto">
-              Return Home
-            </TechActionButton>
+          <Link
+            to="/"
+            className="tech-cut inline-flex border border-tech-blue bg-tech-blue/10 px-4 py-3 text-sm font-bold uppercase tracking-[0.2em] text-tech-blue transition-all hover:bg-tech-blue hover:text-base-900"
+          >
+            Return Home
           </Link>
         </div>
       </TechPanel>

@@ -1,122 +1,68 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function roomPath(roomId) {
-      return /databases/$(database)/documents/rooms/$(roomId);
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
     }
 
-    function playerPath(roomId, uid) {
-      return /databases/$(database)/documents/rooms/$(roomId)/players/$(uid);
+    function isRoomHost(roomId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/rooms/$(roomId))
+        && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
     }
 
-    function roomData(roomId) {
-      return get(roomPath(roomId)).data;
+    function isRoomParticipant(roomId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/rooms/$(roomId)/players/$(request.auth.uid));
     }
 
-    function roomExists(roomId) {
-      return exists(roomPath(roomId));
-    }
-
-    function isMember(roomId) {
-      return exists(playerPath(roomId, request.auth.uid));
-    }
-
-    function isHost(roomId) {
-      return roomExists(roomId) && roomData(roomId).hostUid == request.auth.uid;
-    }
-
-    function isActivePlayer(roomId) {
-      return roomExists(roomId) && roomData(roomId).activePlayerUid == request.auth.uid;
-    }
-
-    function validRoomStatus(status) {
-      return status in ['lobby', 'running', 'ended'];
-    }
-
-    function validPlayerDoc(doc) {
-      return doc.uid is string
-        && doc.displayName is string
-        && doc.queueOrder is int
-        && doc.totalScore is int
-        && doc.correctCount is int
-        && doc.wrongCount is int
-        && doc.missCount is int
-        && doc.responseCount is int
-        && doc.responseTimeTotalMs is number
-        && doc.avgResponseMs is number
-        && doc.accuracy is number
-        && doc.turnsPlayed is int
-        && doc.isConnected is bool;
+    match /users/{uid} {
+      allow read, write: if isSelf(uid);
     }
 
     match /rooms/{roomId} {
-      allow read: if isAuthenticated() && isMember(roomId);
+      allow read: if isRoomHost(roomId) || isRoomParticipant(roomId);
 
-      allow create: if isAuthenticated()
+      allow create: if signedIn()
         && request.resource.data.hostUid == request.auth.uid
-        && request.resource.data.status == 'lobby'
-        && request.resource.data.turnDurationSec == 60
-        && request.resource.data.activePlayerUid == null
-        && request.resource.data.turnStartedAtMs == null
-        && request.resource.data.turnEndsAtMs == null
-        && request.resource.data.turnNumber == 0
-        && request.resource.data.activeAlert == null
-        && request.resource.data.endedAtMs == null
-        && request.resource.data.playerQueue is list;
+        && request.resource.data.status == "lobby";
 
-      // Host manages room lifecycle and alert publication.
-      // Fallback host transfer is allowed when hostUid changes to the authenticated user.
-      allow update: if isAuthenticated()
-        && validRoomStatus(request.resource.data.status)
-        && (
-          isHost(roomId)
-          || request.resource.data.hostUid == request.auth.uid
-        );
-
+      // Room lifecycle updates are host-controlled. Participants can only perform
+      // queue/connection metadata updates without changing gameplay control fields.
+      allow update: if isRoomHost(roomId) || (
+        isRoomParticipant(roomId)
+        && request.resource.data.hostUid == resource.data.hostUid
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.turnDurationSec == resource.data.turnDurationSec
+        && request.resource.data.activePlayerUid == resource.data.activePlayerUid
+        && request.resource.data.turnStartedAtMs == resource.data.turnStartedAtMs
+        && request.resource.data.turnEndsAtMs == resource.data.turnEndsAtMs
+        && request.resource.data.turnNumber == resource.data.turnNumber
+        && request.resource.data.activeAlert == resource.data.activeAlert
+        && request.resource.data.createdAtMs == resource.data.createdAtMs
+        && request.resource.data.endedAtMs == resource.data.endedAtMs
+      );
       allow delete: if false;
+    }
 
-      match /players/{uid} {
-        allow read: if isAuthenticated() && (isMember(roomId) || request.auth.uid == uid);
+    match /rooms/{roomId}/players/{uid} {
+      allow read: if isRoomHost(roomId) || isRoomParticipant(roomId);
 
-        // Join flow: user can create only their own player doc if room exists.
-        allow create: if isAuthenticated()
-          && request.auth.uid == uid
-          && roomExists(roomId)
-          && validPlayerDoc(request.resource.data);
+      // Player records can be created/updated by host or the player itself.
+      allow create, update: if isRoomHost(roomId) || isSelf(uid);
+      allow delete: if false;
+    }
 
-        // Player can toggle own connection; host can apply aggregate updates.
-        allow update: if isAuthenticated()
-          && validPlayerDoc(request.resource.data)
-          && (
-            request.auth.uid == uid
-            || isHost(roomId)
-            || isActivePlayer(roomId)
-          );
+    match /rooms/{roomId}/events/{eventId} {
+      allow read: if isRoomHost(roomId) || isRoomParticipant(roomId);
 
-        allow delete: if false;
-      }
-
-      match /events/{eventId} {
-        allow read: if isAuthenticated() && isMember(roomId);
-
-        // Event logs are immutable; host writes turn/alert events, active player writes response events.
-        allow create: if isAuthenticated()
-          && request.resource.data.eventId == eventId
-          && request.resource.data.roomId == roomId
-          && request.resource.data.actorUid is string
-          && request.resource.data.timestampMs is int
-          && request.resource.data.payload is map
-          && (
-            isHost(roomId)
-            || isActivePlayer(roomId)
-          );
-
-        allow update, delete: if false;
-      }
+      // Events are append-only and immutable for auditability.
+      allow create: if isRoomHost(roomId) || isRoomParticipant(roomId);
+      allow update, delete: if false;
     }
   }
 }

@@ -9,31 +9,45 @@ export function useAuthSession() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = subscribeAuthState((nextUser) => {
-      setUser(nextUser);
-      setLoading(false);
-    });
+    try {
+      const unsubscribe = subscribeAuthState((nextUser) => {
+        logger.debug("Auth state changed", {
+          uid: nextUser?.uid ?? null
+        });
+        setUser(nextUser);
+        setLoading(false);
+      });
 
-    return () => {
-      unsubscribe();
-    };
+      return () => {
+        unsubscribe();
+      };
+    } catch (caughtError) {
+      logger.error("Unable to initialize auth subscription", {
+        error: String(caughtError)
+      });
+      setError("Firebase Auth is not configured. Set VITE_FIREBASE_* values.");
+      setLoading(false);
+      return;
+    }
   }, []);
 
   const signIn = useCallback(async () => {
     try {
       setError(null);
+      logger.info("Auth sign-in requested");
       const signedInUser = await signInWithGoogle();
       setUser(signedInUser);
     } catch (caughtError) {
       logger.error("Sign-in failed", {
         error: String(caughtError)
       });
-      setError("Sign-in failed. Please retry.");
+      setError("Google sign-in failed. Verify Firebase configuration and retry.");
     }
   }, []);
 
   const signOut = useCallback(async () => {
     try {
+      logger.info("Auth sign-out requested");
       await signOutUser();
       setUser(null);
     } catch (caughtError) {

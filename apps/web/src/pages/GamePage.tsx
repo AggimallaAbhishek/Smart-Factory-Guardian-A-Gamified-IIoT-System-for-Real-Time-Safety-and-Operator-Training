@@ -7,6 +7,7 @@ import { PlayerCard } from "../components/multiplayer/PlayerCard";
 import { QueueList } from "../components/multiplayer/QueueList";
 import { ScoreBoard } from "../components/multiplayer/ScoreBoard";
 import { Timer } from "../components/multiplayer/Timer";
+import { TechActionButton } from "../components/ui/TechActionButton";
 import { TechPanel } from "../components/ui/TechPanel";
 import { useRoomContext } from "../features/rooms/RoomContext";
 
@@ -114,12 +115,25 @@ export function GamePage() {
       </div>
 
       {room.isHost ? (
-        <HardwarePanel
-          roomRunning={roomRunning}
-          onAlert={async (alertType, source, timestampMs) => {
-            await room.publishAlert(alertType, source, timestampMs);
-          }}
-        />
+        <div className="grid gap-3 xl:grid-cols-[1.25fr,1fr]">
+          <HardwarePanel
+            roomRunning={roomRunning}
+            onAlert={async (alertType, source, timestampMs) => {
+              await room.publishAlert(alertType, source, timestampMs);
+            }}
+          />
+          <TechPanel>
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/55">Host Actions</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <TechActionButton tone="orange" onClick={() => void room.forceNextTurn()} data-testid="host-force-next">
+                Force Next
+              </TechActionButton>
+              <TechActionButton tone="red" onClick={() => void room.endRoom()} data-testid="host-end">
+                End Room
+              </TechActionButton>
+            </div>
+          </TechPanel>
+        </div>
       ) : (
         <TechPanel>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/60">Host Gateway</p>

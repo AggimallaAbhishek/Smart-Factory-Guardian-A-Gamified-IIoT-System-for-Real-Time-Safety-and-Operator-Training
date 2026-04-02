@@ -14,7 +14,7 @@ const START_SESSION_DURATION_SEC = 24 * 60 * 60;
 const mockConfigSchema = z
   .object({
     minIntervalMs: z.number().int().min(1_000).max(5_000).default(2_000),
-    maxIntervalMs: z.number().int().min(1_500).max(8_000).default(3_000)
+    maxIntervalMs: z.number().int().min(1_500).max(8_000).default(4_000)
   })
   .strict();
 
@@ -197,6 +197,11 @@ export function startMock(config: MockConfig, callbacks: HardwareCallbacks): Har
   let timerId: number | null = null;
   let stopped = false;
 
+  logger.info("Starting mock hardware source", {
+    minIntervalMs: parsed.minIntervalMs,
+    maxIntervalMs: parsed.maxIntervalMs
+  });
+
   const dispatchNext = () => {
     if (stopped) {
       return;
@@ -204,6 +209,9 @@ export function startMock(config: MockConfig, callbacks: HardwareCallbacks): Har
 
     timerId = window.setTimeout(() => {
       const alertType = randomAlertType();
+      logger.debug("Mock hardware emitted alert", {
+        alertType
+      });
       callbacks.onAlert(alertType, Date.now());
       dispatchNext();
     }, nextTimeoutMs(parsed.minIntervalMs, parsed.maxIntervalMs));
@@ -223,6 +231,8 @@ export function startMock(config: MockConfig, callbacks: HardwareCallbacks): Har
       if (timerId !== null) {
         window.clearTimeout(timerId);
       }
+
+      logger.info("Mock hardware source stopped");
 
       callbacks.onStatus({
         connected: false,
