@@ -38,8 +38,8 @@ describe("roomEngine alert and response", () => {
     expect(published.room.activeAlert?.type).toBe("gas");
 
     const responded = submitResponseState(published, "host", "gas", 2_350);
-    expect(responded.players.host.totalScore).toBe(10);
-    expect(responded.players.host.avgResponseMs).toBe(350);
+    expect(responded.players.host!.totalScore).toBe(10);
+    expect(responded.players.host!.avgResponseMs).toBe(350);
     expect(responded.room.activeAlert).toBeNull();
   });
 });
@@ -64,7 +64,7 @@ describe("roomEngine turn advancement", () => {
     };
 
     const advanced = advanceTurnState({ room, players }, "host", 62_000, "timeout");
-    expect(advanced.players.host.missCount).toBe(1);
+    expect(advanced.players.host!.missCount).toBe(1);
     expect(advanced.room.activePlayerUid).toBe("guest");
   });
 });

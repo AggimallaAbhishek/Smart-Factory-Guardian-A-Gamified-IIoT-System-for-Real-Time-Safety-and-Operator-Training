@@ -6,6 +6,7 @@
   font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
   color: #dce8ff;
   background-color: #070b14;
+  color-scheme: dark;
 }
 
 body {
@@ -20,4 +21,14 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+select {
+  font: inherit;
 }

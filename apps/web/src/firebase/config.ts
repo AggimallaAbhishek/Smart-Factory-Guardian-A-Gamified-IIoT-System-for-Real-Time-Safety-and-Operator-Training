@@ -24,8 +24,9 @@ const parsed = firebaseSchema.safeParse({
 });
 
 export const isFirebaseConfigured = parsed.success;
+const firebaseConfig = parsed.success ? parsed.data : null;
 
-export const firebaseApp = isFirebaseConfigured ? initializeApp(parsed.data) : null;
+export const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null;
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 export const firestoreDb = firebaseApp ? getFirestore(firebaseApp) : null;
 
