@@ -1,6 +1,7 @@
 import type { AlertType } from "@guardian/protocol";
 import { logger } from "../../lib/logger";
 import { wrapRoomError } from "./errorMessages";
+import { ensureFirebaseSessionReady } from "./firebaseSession";
 import { getRoomRepository } from "./repository";
 import { responseRequestSchema } from "./schemas";
 import type { RoomDoc } from "./types";
@@ -77,6 +78,7 @@ export async function submitResponse(
   });
 
   try {
+    await ensureFirebaseSessionReady("submit_response");
     await getRoomRepository().submitResponse(roomId, actorUid, responseType, timestampMs);
   } catch (error) {
     throw wrapRoomError(error, "Submit response");

@@ -1,6 +1,7 @@
 import type { AlertType } from "@guardian/protocol";
 import { logger } from "../../lib/logger";
 import { wrapRoomError } from "./errorMessages";
+import { ensureFirebaseSessionReady } from "./firebaseSession";
 import { getRoomRepository } from "./repository";
 import { roomCodeSchema } from "./schemas";
 import type { HardwareSource } from "./types";
@@ -13,6 +14,7 @@ export async function publishAlert(
   issuedAtMs: number
 ) {
   try {
+    await ensureFirebaseSessionReady("publish_alert");
     const parsedRoomId = roomCodeSchema.parse(roomId);
     await getRoomRepository().publishAlert(parsedRoomId, actorUid, alertType, source, issuedAtMs);
 

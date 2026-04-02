@@ -12,6 +12,7 @@
     "dev:web": "npm --workspace @guardian/web run dev",
     "dev:bridge": "npm --workspace @guardian/bridge run dev",
     "dev:bridge:test": "BRIDGE_PORT=8787 BRIDGE_TOKEN=test-token BRIDGE_ALLOW_ORIGINS=http://127.0.0.1:5173 npm --workspace @guardian/bridge run dev",
+    "firebase:deploy:rules": "firebase deploy --only firestore:rules --project smart-factory-guardian",
     "build": "npm run --workspaces build",
     "test": "npm run test:unit",
     "test:unit": "npm run --workspaces test",

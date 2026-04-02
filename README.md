@@ -32,7 +32,15 @@ VITE_FIREBASE_APP_ID=...
 npm run dev:web
 ```
 
-4. Open `http://127.0.0.1:5173`, sign in with Google, create/join a room, and run the 60-second turn gameplay.
+4. Deploy Firestore rules (required for room create/join):
+
+```bash
+npm run firebase:deploy:rules
+```
+
+If deploy returns HTTP 403, your Firebase account is missing project permissions. Request `Project Owner` or `Firebase Admin` access on `smart-factory-guardian`.
+
+5. Open `http://127.0.0.1:5173`, sign in with Google, create/join a room, and run the 60-second turn gameplay.
 
 ## Firebase Security Rules
 
