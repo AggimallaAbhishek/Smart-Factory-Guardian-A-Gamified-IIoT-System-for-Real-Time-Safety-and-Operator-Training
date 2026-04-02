@@ -40,7 +40,7 @@ function connectClient() {
     });
 
     ws.once("open", () => resolve(ws));
-    ws.once("error", (error) => reject(error));
+    ws.once("error", (error: Error) => reject(error));
   });
 }
 
@@ -53,7 +53,7 @@ function waitForType<T extends Record<string, unknown>>(ws: WebSocket, type: str
       }
 
       ws.off("message", listener);
-      resolve(parsed as T);
+      resolve(parsed as unknown as T);
     };
 
     ws.on("message", listener);

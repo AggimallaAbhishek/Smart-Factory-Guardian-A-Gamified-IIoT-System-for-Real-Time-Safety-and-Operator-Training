@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BridgeEvent, PlayerSession, SourceType } from "@guardian/protocol";
+import type { AlertType, BridgeEvent, PlayerSession, SourceType } from "@guardian/protocol";
 import { DEFAULT_SESSION_DURATION_SEC, DEFAULT_BRIDGE_PORT } from "./lib/constants";
 import { appendSession, loadSessionHistory } from "./lib/storage";
 import { downloadSessionsCsv } from "./lib/csv";
@@ -23,6 +23,7 @@ export function App() {
 
   const finishedRef = useRef(false);
   const game = useGameSession(playerName);
+  const { state: gameState } = game;
 
   const onBridgeEvent = useCallback(
     (event: BridgeEvent) => {
@@ -32,16 +33,16 @@ export function App() {
       }
 
       if (event.type === "SESSION_STATE") {
-        if (event.payload.status === "running" && game.state.status !== "running") {
+        if (event.payload.status === "running" && gameState.status !== "running") {
           game.start(event.payload.durationSec, event.payload.startedAtMs ?? Date.now());
         }
 
-        if (event.payload.status === "stopped" && game.state.status === "running") {
+        if (event.payload.status === "stopped" && gameState.status === "running") {
           game.stop(event.payload.endedAtMs ?? Date.now());
         }
       }
     },
-    [game]
+    [game, gameState.status]
   );
 
   const bridge = useBridgeClient(onBridgeEvent);
@@ -67,18 +68,18 @@ export function App() {
   }, [bridge]);
 
   useEffect(() => {
-    if (view === "game" && bridge.state.connected && game.state.status === "idle") {
+    if (view === "game" && bridge.state.connected && gameState.status === "idle") {
       onStartSession();
     }
-  }, [view, bridge.state.connected, game.state.status, onStartSession]);
+  }, [view, bridge.state.connected, gameState.status, onStartSession]);
 
   useEffect(() => {
-    if (game.state.status === "running") {
+    if (gameState.status === "running") {
       finishedRef.current = false;
       return;
     }
 
-    if (game.state.status === "stopped" && !finishedRef.current) {
+    if (gameState.status === "stopped" && !finishedRef.current) {
       finishedRef.current = true;
 
       const summary = game.buildSessionSummary();
@@ -87,14 +88,11 @@ export function App() {
       setCurrentResult(summary);
       setView("result");
     }
-  }, [game]);
+  }, [game, gameState.status]);
 
-  const onRespond = useCallback(
-    (alertType: SourceType | "gas" | "temperature" | "maintenance") => {
-      game.respond(alertType as "gas" | "temperature" | "maintenance");
-    },
-    [game]
-  );
+  const onRespond = useCallback((alertType: AlertType) => {
+    game.respond(alertType);
+  }, [game]);
 
   const onStopSession = useCallback(() => {
     bridge.sendCommand({
@@ -141,9 +139,9 @@ export function App() {
 
       {view === "game" ? (
         <GameScreen
-          score={game.state.score}
-          remainingSec={game.state.remainingSec}
-          activeAlert={game.state.activeAlert?.alertType ?? null}
+          score={gameState.score}
+          remainingSec={gameState.remainingSec}
+          activeAlert={gameState.activeAlert?.alertType ?? null}
           onRespond={onRespond}
           onStop={onStopSession}
         />
