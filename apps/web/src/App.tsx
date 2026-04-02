@@ -23,26 +23,39 @@ export function App() {
 
   const finishedRef = useRef(false);
   const game = useGameSession(playerName);
-  const { state: gameState } = game;
+  const {
+    state: gameState,
+    ingestAlert,
+    start,
+    stop,
+    respond,
+    reset,
+    buildSessionSummary
+  } = game;
+  const gameStatusRef = useRef(gameState.status);
+
+  useEffect(() => {
+    gameStatusRef.current = gameState.status;
+  }, [gameState.status]);
 
   const onBridgeEvent = useCallback(
     (event: BridgeEvent) => {
       if (event.type === "ALERT") {
-        game.ingestAlert(event.payload);
+        ingestAlert(event.payload);
         return;
       }
 
       if (event.type === "SESSION_STATE") {
-        if (event.payload.status === "running" && gameState.status !== "running") {
-          game.start(event.payload.durationSec, event.payload.startedAtMs ?? Date.now());
+        if (event.payload.status === "running" && gameStatusRef.current !== "running") {
+          start(event.payload.durationSec, event.payload.startedAtMs ?? Date.now());
         }
 
-        if (event.payload.status === "stopped" && gameState.status === "running") {
-          game.stop(event.payload.endedAtMs ?? Date.now());
+        if (event.payload.status === "stopped") {
+          stop(event.payload.endedAtMs ?? Date.now());
         }
       }
     },
-    [game, gameState.status]
+    [ingestAlert, start, stop]
   );
 
   const bridge = useBridgeClient(onBridgeEvent);
@@ -82,17 +95,17 @@ export function App() {
     if (gameState.status === "stopped" && !finishedRef.current) {
       finishedRef.current = true;
 
-      const summary = game.buildSessionSummary();
+      const summary = buildSessionSummary();
       const updatedHistory = appendSession(summary);
       setHistory(updatedHistory);
       setCurrentResult(summary);
       setView("result");
     }
-  }, [game, gameState.status]);
+  }, [buildSessionSummary, gameState.status]);
 
   const onRespond = useCallback((alertType: AlertType) => {
-    game.respond(alertType);
-  }, [game]);
+    respond(alertType);
+  }, [respond]);
 
   const onStopSession = useCallback(() => {
     bridge.sendCommand({
@@ -102,10 +115,10 @@ export function App() {
   }, [bridge]);
 
   const onPlayAgain = useCallback(() => {
-    game.reset();
+    reset();
     setCurrentResult(null);
     setView("home");
-  }, [game]);
+  }, [reset]);
 
   const statusText = useMemo(() => {
     const status = bridge.state.connected ? "Connected" : bridge.state.connecting ? "Connecting" : "Offline";
