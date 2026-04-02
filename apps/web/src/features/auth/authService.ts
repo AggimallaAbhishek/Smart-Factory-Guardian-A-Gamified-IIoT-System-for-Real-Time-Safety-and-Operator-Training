@@ -22,7 +22,7 @@ function mapFirebaseUser(user: User): AuthUser {
 }
 
 function readDemoUser() {
-  const raw = localStorage.getItem(DEMO_USER_KEY);
+  const raw = sessionStorage.getItem(DEMO_USER_KEY);
   if (!raw) {
     return null;
   }
@@ -39,9 +39,9 @@ function readDemoUser() {
 
 function writeDemoUser(user: AuthUser | null) {
   if (!user) {
-    localStorage.removeItem(DEMO_USER_KEY);
+    sessionStorage.removeItem(DEMO_USER_KEY);
   } else {
-    localStorage.setItem(DEMO_USER_KEY, JSON.stringify(user));
+    sessionStorage.setItem(DEMO_USER_KEY, JSON.stringify(user));
   }
 
   for (const listener of demoListeners) {

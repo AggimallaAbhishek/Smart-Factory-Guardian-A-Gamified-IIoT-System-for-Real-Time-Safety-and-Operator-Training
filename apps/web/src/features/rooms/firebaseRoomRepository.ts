@@ -6,9 +6,7 @@ import {
   orderBy,
   query,
   runTransaction,
-  type DocumentData,
   type Firestore,
-  type QuerySnapshot,
   type Transaction
 } from "firebase/firestore";
 import { logger } from "../../lib/logger";
@@ -33,7 +31,6 @@ import type {
 } from "./types";
 
 interface TxRecord {
-  roomRefPath: string;
   room: RoomDoc;
   players: Record<string, RoomPlayerDoc>;
 }
@@ -470,20 +467,23 @@ export class FirebaseRoomRepository implements RoomRepository {
 
     const room = throwIfInvalidRoom(roomId, roomSnapshot.data());
 
-    const playersSnapshot = await transaction.get(
-      query(collection(this.db, "rooms", roomId, "players"), orderBy("queueOrder", "asc"), orderBy("joinedAtMs", "asc"))
-    );
-
     const players: Record<string, RoomPlayerDoc> = {};
-    playersSnapshot.forEach((playerDoc) => {
-      const parsed = parsePlayer(playerDoc.data(), roomId, playerDoc.id);
-      if (parsed) {
-        players[playerDoc.id] = parsed;
+    const playerIds = new Set<string>(room.playerQueue);
+    playerIds.add(room.hostUid);
+
+    for (const uid of playerIds) {
+      const playerSnapshot = await transaction.get(doc(this.db, "rooms", roomId, "players", uid));
+      if (!playerSnapshot.exists()) {
+        continue;
       }
-    });
+
+      const parsed = parsePlayer(playerSnapshot.data(), roomId, uid);
+      if (parsed) {
+        players[uid] = parsed;
+      }
+    }
 
     return {
-      roomRefPath: roomRef.path,
       room,
       players
     };

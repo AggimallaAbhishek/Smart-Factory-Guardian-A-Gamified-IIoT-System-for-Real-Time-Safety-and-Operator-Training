@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ALERT_TYPES, type AlertType } from "@guardian/protocol";
 import { AlertButton } from "../components/multiplayer/AlertButton";
+import { HostControls } from "../components/multiplayer/HostControls";
 import { HardwarePanel } from "../components/multiplayer/HardwarePanel";
 import { PlayerCard } from "../components/multiplayer/PlayerCard";
 import { QueueList } from "../components/multiplayer/QueueList";
@@ -101,12 +102,22 @@ export function GamePage() {
       </div>
 
       {room.isHost ? (
-        <HardwarePanel
-          roomRunning={roomRunning}
-          onAlert={async (alertType, source, timestampMs) => {
-            await room.publishAlert(alertType, source, timestampMs);
-          }}
-        />
+        <div className="grid gap-3 lg:grid-cols-[1.3fr,1fr]">
+          <HardwarePanel
+            roomRunning={roomRunning}
+            onAlert={async (alertType, source, timestampMs) => {
+              await room.publishAlert(alertType, source, timestampMs);
+            }}
+          />
+          {room.room ? (
+            <HostControls
+              roomStatus={room.room.status}
+              onStart={() => void room.startRoom()}
+              onForceNext={() => void room.forceNextTurn()}
+              onEnd={() => void room.endRoom()}
+            />
+          ) : null}
+        </div>
       ) : (
         <section className="rounded-xl border border-factory-line bg-factory-panel p-4 text-sm text-factory-muted">
           Waiting for host hardware gateway events.
