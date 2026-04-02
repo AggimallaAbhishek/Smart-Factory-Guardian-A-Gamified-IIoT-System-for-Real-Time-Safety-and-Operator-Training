@@ -24,24 +24,45 @@ test("multiplayer demo flow with host hardware mock", async ({ page, context }) 
   await expect(page).toHaveURL(new RegExp("/room/" + roomId + "/game$"));
   await expect(playerPage).toHaveURL(new RegExp("/room/" + roomId + "/game$"));
 
-  await page.getByTestId("hardware-start").click();
+  const pageIsHost = await page.getByTestId("hardware-start").isVisible().catch(() => false);
+  const controlPage = pageIsHost ? page : playerPage;
+  const spectatorPage = pageIsHost ? playerPage : page;
 
-  const activeAlertPanel = page.getByTestId("active-alert-panel");
+  await controlPage.getByTestId("hardware-start").click();
+
+  await expect.poll(
+    async () => {
+        if (await controlPage.getByTestId("alert-gas").isEnabled()) {
+          return "control";
+        }
+
+        if (await spectatorPage.getByTestId("alert-gas").isEnabled()) {
+          return "spectator";
+        }
+
+      return "none";
+    },
+    { timeout: 10_000 }
+  ).not.toBe("none");
+
+  const activeActor = (await controlPage.getByTestId("alert-gas").isEnabled()) ? "control" : "spectator";
+  const actorPage = activeActor === "control" ? controlPage : spectatorPage;
+  const activeAlertPanel = actorPage.getByTestId("active-alert-panel");
   await expect(activeAlertPanel).not.toContainText("No active alert", { timeout: 10_000 });
 
   const alertText = (await activeAlertPanel.innerText()).toLowerCase();
   if (alertText.includes("gas")) {
-    await page.getByTestId("alert-gas").click();
+    await actorPage.getByTestId("alert-gas").click();
   } else if (alertText.includes("temperature")) {
-    await page.getByTestId("alert-temperature").click();
+    await actorPage.getByTestId("alert-temperature").click();
   } else {
-    await page.getByTestId("alert-maintenance").click();
+    await actorPage.getByTestId("alert-maintenance").click();
   }
 
-  await expect(page.getByTestId("score-value")).not.toHaveText("0", { timeout: 5_000 });
+  await expect(actorPage.getByTestId("score-value")).not.toHaveText("0", { timeout: 5_000 });
 
-  await page.getByTestId("host-force-next").click();
-  await page.getByTestId("host-end").click();
+  await controlPage.getByTestId("host-force-next").click();
+  await controlPage.getByTestId("host-end").click();
 
   await expect(page).toHaveURL(new RegExp("/room/" + roomId + "/result$"));
   await expect(playerPage).toHaveURL(new RegExp("/room/" + roomId + "/result$"));

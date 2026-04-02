@@ -3,40 +3,48 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Rajdhani", "sans-serif"],
+        mono: ["Share Tech Mono", "monospace"]
+      },
       colors: {
-        factory: {
-          bg: "#070b14",
-          panel: "#101828",
-          panelSoft: "#142033",
-          line: "#213147",
-          text: "#dce8ff",
-          muted: "#90a7c9",
-          neonCyan: "#22d3ee",
-          neonOrange: "#fb923c",
-          neonBlue: "#3b82f6",
-          neonRed: "#ef4444",
-          neonGreen: "#22c55e"
+        base: {
+          900: "#030712",
+          800: "#0B1320",
+          700: "#142033",
+          500: "#3A506B"
+        },
+        tech: {
+          red: "#FF2A4D",
+          orange: "#FF9E00",
+          blue: "#00F0FF",
+          green: "#00FF9D"
         }
       },
       boxShadow: {
-        neon: "0 0 0 1px rgba(34,211,238,0.3), 0 0 24px rgba(34,211,238,0.18)",
-        alertRed: "0 0 28px rgba(239,68,68,0.45)",
-        alertOrange: "0 0 28px rgba(251,146,60,0.45)",
-        alertBlue: "0 0 28px rgba(59,130,246,0.45)"
+        neon: "0 0 0 1px rgba(0,240,255,0.3), 0 0 24px rgba(0,240,255,0.2)",
+        alertRed: "0 0 35px rgba(255,42,77,0.5)",
+        alertOrange: "0 0 35px rgba(255,158,0,0.5)",
+        alertBlue: "0 0 35px rgba(0,240,255,0.5)"
       },
       keyframes: {
-        pulseNeon: {
-          "0%, 100%": { opacity: "0.75", transform: "scale(1)" },
-          "50%": { opacity: "1", transform: "scale(1.03)" }
+        pulseAlert: {
+          "0%, 100%": { opacity: "0.7", boxShadow: "0 0 0 rgba(0, 240, 255, 0)" },
+          "50%": { opacity: "1", boxShadow: "0 0 26px rgba(0, 240, 255, 0.5)" }
         },
         timerUrgent: {
-          "0%, 100%": { color: "#ef4444", transform: "scale(1)" },
-          "50%": { color: "#f97316", transform: "scale(1.06)" }
+          "0%, 100%": { color: "#FF2A4D", transform: "scale(1)" },
+          "50%": { color: "#FF9E00", transform: "scale(1.05)" }
+        },
+        sweep: {
+          "0%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(120%)" }
         }
       },
       animation: {
-        pulseNeon: "pulseNeon 1s ease-in-out infinite",
-        timerUrgent: "timerUrgent 900ms ease-in-out infinite"
+        pulseAlert: "pulseAlert 1.1s ease-in-out infinite",
+        timerUrgent: "timerUrgent 0.9s ease-in-out infinite",
+        sweep: "sweep 1.8s linear infinite"
       }
     }
   },

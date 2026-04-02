@@ -9,6 +9,7 @@ import { advanceTurn, heartbeat, transferHostIfStale } from "../features/rooms/q
 import { submitResponse } from "../features/rooms/responseService";
 import {
   endRoom,
+  joinRoom,
   setPlayerConnection,
   startRoom,
   subscribePlayers,
@@ -16,6 +17,7 @@ import {
 } from "../features/rooms/roomService";
 import { HOST_HEARTBEAT_INTERVAL_MS, HOST_STALE_THRESHOLD_MS } from "../features/rooms/constants";
 import type { RoomDoc, RoomPlayerDoc } from "../features/rooms/types";
+import { TerminalShell } from "../components/ui/TerminalShell";
 
 const STATUS_ROUTE: Record<RoomDoc["status"], string> = {
   lobby: "lobby",
@@ -35,14 +37,7 @@ export function RoomLayout() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const joinedRef = useRef(false);
   const timeoutLockRef = useRef(false);
-
-  useEffect(() => {
-    if (!auth.loading && !auth.user) {
-      navigate("/", { replace: true });
-    }
-  }, [auth.loading, auth.user, navigate]);
 
   useEffect(() => {
     const user = auth.user;
@@ -50,9 +45,34 @@ export function RoomLayout() {
       return;
     }
 
-    let alive = true;
+    let mounted = true;
+    setLoading(true);
+    setError(null);
+
+    const bootstrap = async () => {
+      try {
+        await joinRoom(roomId, user);
+        await setPlayerConnection(roomId, user.uid, true);
+        logger.info("Room bootstrap completed", {
+          roomId,
+          uid: user.uid
+        });
+      } catch (caughtError) {
+        logger.error("Room bootstrap failed", {
+          roomId,
+          uid: user.uid,
+          error: String(caughtError)
+        });
+        if (mounted) {
+          setError(String(caughtError));
+        }
+      }
+    };
+
+    void bootstrap();
+
     const unsubscribeRoom = subscribeRoom(roomId, (nextRoom) => {
-      if (!alive) {
+      if (!mounted) {
         return;
       }
 
@@ -61,30 +81,20 @@ export function RoomLayout() {
     });
 
     const unsubscribePlayers = subscribePlayers(roomId, (nextPlayers) => {
-      if (!alive) {
+      if (!mounted) {
         return;
       }
-
       setPlayers(nextPlayers);
     });
 
-    if (!joinedRef.current) {
-      joinedRef.current = true;
-      void setPlayerConnection(roomId, user.uid, true).catch((caughtError) => {
-        logger.warn("setPlayerConnection failed on mount", {
-          roomId,
-          error: String(caughtError)
-        });
-      });
-    }
-
     return () => {
-      alive = false;
+      mounted = false;
       unsubscribeRoom();
       unsubscribePlayers();
       void setPlayerConnection(roomId, user.uid, false).catch((caughtError) => {
         logger.warn("Unable to mark player disconnected on unmount", {
           roomId,
+          uid: user.uid,
           error: String(caughtError)
         });
       });
@@ -108,31 +118,30 @@ export function RoomLayout() {
       return;
     }
 
-    const timer = window.setInterval(() => {
-      if (!room) {
-        return;
-      }
-
+    const timerId = window.setInterval(() => {
       const nowMs = Date.now();
       if (room.hostUid === user.uid) {
         void heartbeat(roomId, user.uid, nowMs).catch((caughtError) => {
           logger.warn("Host heartbeat failed", {
             roomId,
+            uid: user.uid,
             error: String(caughtError)
           });
         });
-      } else {
-        void transferHostIfStale(roomId, user.uid, nowMs, HOST_STALE_THRESHOLD_MS).catch((caughtError) => {
-          logger.warn("Host transfer probe failed", {
-            roomId,
-            error: String(caughtError)
-          });
-        });
+        return;
       }
+
+      void transferHostIfStale(roomId, user.uid, nowMs, HOST_STALE_THRESHOLD_MS).catch((caughtError) => {
+        logger.warn("Host transfer probe failed", {
+          roomId,
+          uid: user.uid,
+          error: String(caughtError)
+        });
+      });
     }, HOST_HEARTBEAT_INTERVAL_MS);
 
     return () => {
-      window.clearInterval(timer);
+      window.clearInterval(timerId);
     };
   }, [auth.user, room, roomId]);
 
@@ -142,7 +151,7 @@ export function RoomLayout() {
       return;
     }
 
-    const timer = window.setInterval(() => {
+    const timerId = window.setInterval(() => {
       if (timeoutLockRef.current) {
         return;
       }
@@ -153,10 +162,17 @@ export function RoomLayout() {
       }
 
       timeoutLockRef.current = true;
+      logger.debug("Turn timeout reached, advancing queue", {
+        roomId,
+        uid: user.uid,
+        turnEndsAtMs: room.turnEndsAtMs
+      });
+
       void advanceTurn(roomId, user.uid, "timeout")
         .catch((caughtError) => {
           logger.warn("Timeout turn advance failed", {
             roomId,
+            uid: user.uid,
             error: String(caughtError)
           });
         })
@@ -168,7 +184,7 @@ export function RoomLayout() {
     }, 250);
 
     return () => {
-      window.clearInterval(timer);
+      window.clearInterval(timerId);
     };
   }, [auth.user, room, roomId]);
 
@@ -191,6 +207,10 @@ export function RoomLayout() {
 
     try {
       setError(null);
+      logger.info("Host requested room start", {
+        roomId,
+        uid: auth.user.uid
+      });
       await startRoom(roomId, auth.user.uid);
     } catch (caughtError) {
       setError(String(caughtError));
@@ -204,6 +224,10 @@ export function RoomLayout() {
 
     try {
       setError(null);
+      logger.info("Host requested room end", {
+        roomId,
+        uid: auth.user.uid
+      });
       await endRoom(roomId, auth.user.uid);
     } catch (caughtError) {
       setError(String(caughtError));
@@ -217,6 +241,10 @@ export function RoomLayout() {
 
     try {
       setError(null);
+      logger.info("Host requested force-next turn", {
+        roomId,
+        uid: auth.user.uid
+      });
       await advanceTurn(roomId, auth.user.uid, "force");
     } catch (caughtError) {
       setError(String(caughtError));
@@ -297,47 +325,56 @@ export function RoomLayout() {
     ]
   );
 
-  if (auth.loading || loading) {
+  if (loading) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center px-4 text-factory-muted">
-        Connecting to room...
-      </main>
+      <TerminalShell frameClassName="max-w-2xl">
+        <div className="my-auto text-center font-mono text-sm uppercase tracking-[0.22em] text-tech-blue/70">
+          Connecting to room...
+        </div>
+      </TerminalShell>
     );
   }
 
   if (!room) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-3 px-4 text-center">
-        <h1 className="text-2xl font-bold text-factory-text">Room not found</h1>
-        <p className="text-sm text-factory-muted">Check the room code and try again.</p>
-        <Link to="/" className="rounded-lg border border-factory-line bg-factory-panel px-4 py-2 text-sm text-factory-text">
-          Go Home
-        </Link>
-      </main>
+      <TerminalShell frameClassName="max-w-2xl">
+        <div className="my-auto text-center">
+          <h1 className="text-2xl font-bold uppercase tracking-[0.2em] text-white">Room Not Found</h1>
+          <p className="mt-3 text-sm text-white/70">Check the room code and try again.</p>
+          <Link
+            to="/"
+            className="mt-5 inline-block border border-tech-blue bg-tech-blue/10 px-4 py-2 font-bold uppercase tracking-[0.2em] text-tech-blue"
+          >
+            Back Home
+          </Link>
+        </div>
+      </TerminalShell>
     );
   }
 
   return (
     <RoomContext.Provider value={contextValue}>
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-4 sm:py-6">
-        <header className="mb-3 rounded-xl border border-factory-line bg-factory-panel p-3 sm:p-4">
+      <TerminalShell frameClassName="max-w-6xl">
+        <header className="tech-cut-reverse mb-3 border border-white/10 bg-base-800/60 p-4 backdrop-blur-md">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-factory-muted">Room</p>
-              <p className="text-lg font-bold text-factory-text" data-testid="room-id">
+              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-white/50">Room</p>
+              <p className="font-mono text-xl font-bold tracking-[0.2em] text-tech-blue" data-testid="room-id">
                 {roomId}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-factory-muted">Host</p>
-              <p className="text-sm text-factory-neonCyan">{room.hostUid === auth.user?.uid ? "You" : room.hostUid}</p>
+              <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-white/50">Host</p>
+              <p className="font-mono text-sm uppercase tracking-[0.18em] text-white">
+                {room.hostUid === auth.user?.uid ? "You" : room.hostUid}
+              </p>
             </div>
           </div>
-          {error ? <p className="mt-2 text-sm text-red-300">{error}</p> : null}
+          {error ? <p className="mt-2 text-xs font-mono tracking-[0.12em] text-tech-red">{error}</p> : null}
         </header>
 
         <Outlet />
-      </main>
+      </TerminalShell>
     </RoomContext.Provider>
   );
 }

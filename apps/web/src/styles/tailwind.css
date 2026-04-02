@@ -1,22 +1,23 @@
+@import url("https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: "Space Grotesk", "Manrope", "Segoe UI", sans-serif;
-  color: #dce8ff;
-  background-color: #070b14;
+  font-family: "Rajdhani", sans-serif;
+  color: #e2e8f0;
+  background-color: #030712;
   color-scheme: dark;
 }
 
 body {
-  min-height: 100vh;
   margin: 0;
+  min-height: 100vh;
   background:
-    radial-gradient(circle at 10% 20%, rgba(34, 211, 238, 0.12), transparent 45%),
-    radial-gradient(circle at 85% 0%, rgba(59, 130, 246, 0.12), transparent 35%),
-    radial-gradient(circle at 90% 80%, rgba(251, 146, 60, 0.12), transparent 30%),
-    #070b14;
+    radial-gradient(circle at 50% 50%, #0B1320 0%, #000000 100%),
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 240, 255, 0.03) 2px, rgba(0, 240, 255, 0.03) 4px);
+  overflow: hidden;
 }
 
 #root {
@@ -31,4 +32,36 @@ button,
 input,
 select {
   font: inherit;
+}
+
+.terminal-bg {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.9);
+}
+
+.crt-lines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 4px;
+  opacity: 0.3;
+}
+
+.tech-cut {
+  clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+}
+
+.tech-cut-reverse {
+  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
 }

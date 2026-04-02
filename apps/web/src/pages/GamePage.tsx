@@ -2,17 +2,17 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ALERT_TYPES, type AlertType } from "@guardian/protocol";
 import { AlertButton } from "../components/multiplayer/AlertButton";
-import { HostControls } from "../components/multiplayer/HostControls";
 import { HardwarePanel } from "../components/multiplayer/HardwarePanel";
 import { PlayerCard } from "../components/multiplayer/PlayerCard";
 import { QueueList } from "../components/multiplayer/QueueList";
 import { ScoreBoard } from "../components/multiplayer/ScoreBoard";
 import { Timer } from "../components/multiplayer/Timer";
+import { TechPanel } from "../components/ui/TechPanel";
 import { useRoomContext } from "../features/rooms/RoomContext";
 
 function alertLabel(alertType: AlertType) {
   if (alertType === "gas") {
-    return "Gas Leak";
+    return "Gas";
   }
 
   if (alertType === "temperature") {
@@ -22,13 +22,28 @@ function alertLabel(alertType: AlertType) {
   return "Maintenance";
 }
 
+function alertToneClass(alertType: AlertType | null) {
+  if (alertType === "gas") {
+    return "border-tech-red/70 bg-tech-red/10 shadow-alertRed animate-pulseAlert";
+  }
+
+  if (alertType === "temperature") {
+    return "border-tech-orange/70 bg-tech-orange/10 shadow-alertOrange animate-pulseAlert";
+  }
+
+  if (alertType === "maintenance") {
+    return "border-tech-blue/70 bg-tech-blue/10 shadow-alertBlue animate-pulseAlert";
+  }
+
+  return "border-white/10 bg-base-800/50";
+}
+
 export function GamePage() {
   const room = useRoomContext();
   const [pendingResponse, setPendingResponse] = useState<AlertType | null>(null);
 
   const activeAlert = room.room?.activeAlert ?? null;
   const roomRunning = room.room?.status === "running";
-
   const canRespond = Boolean(roomRunning && room.isActivePlayer && activeAlert);
 
   const statusText = useMemo(() => {
@@ -37,10 +52,10 @@ export function GamePage() {
     }
 
     if (!activeAlert) {
-      return room.isActivePlayer ? "Awaiting next alert..." : "Waiting for active player response...";
+      return room.isActivePlayer ? "Awaiting next hardware alert..." : "Waiting for active operator response...";
     }
 
-    return "Respond to " + alertLabel(activeAlert.type);
+    return "Active alert: " + alertLabel(activeAlert.type);
   }, [activeAlert, room.isActivePlayer, room.room]);
 
   const onResponse = async (responseType: AlertType) => {
@@ -52,7 +67,7 @@ export function GamePage() {
     await room.submitResponse(responseType, Date.now());
     window.setTimeout(() => {
       setPendingResponse(null);
-    }, 120);
+    }, 140);
   };
 
   return (
@@ -60,10 +75,10 @@ export function GamePage() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.18 }}
+      transition={{ duration: 0.2 }}
       className="grid gap-3"
     >
-      <div className="grid gap-3 lg:grid-cols-[1.2fr,1fr]">
+      <div className="grid gap-3 xl:grid-cols-[1.2fr,1fr]">
         <ScoreBoard
           score={room.myPlayer?.totalScore ?? 0}
           accuracy={room.myPlayer?.accuracy ?? 0}
@@ -72,18 +87,15 @@ export function GamePage() {
         <Timer turnEndsAtMs={room.room?.turnEndsAtMs ?? null} />
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[1.2fr,1fr]">
-        <section className="rounded-xl border border-factory-line bg-factory-panel p-4" data-testid="active-alert-panel">
-          <p className="text-xs uppercase tracking-[0.18em] text-factory-muted">Current Signal</p>
-          <p
-            className={
-              "mt-2 text-xl font-semibold " +
-              (activeAlert ? "text-factory-neonOrange" : "text-factory-muted")
-            }
-          >
-            {activeAlert ? alertLabel(activeAlert.type) : "No active alert"}
+      <div className="grid gap-3 xl:grid-cols-[1.25fr,1fr]">
+        <TechPanel className={alertToneClass(activeAlert?.type ?? null)} cut="normal">
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/55">Active Alert Signal</p>
+          <p className="mt-1 text-3xl font-bold uppercase tracking-[0.1em] text-white" data-testid="active-alert-label">
+            {activeAlert ? alertLabel(activeAlert.type) : "Standby"}
           </p>
-          <p className="mt-1 text-sm text-factory-muted">{statusText}</p>
+          <p className="mt-1 text-sm text-white/75" data-testid="active-alert-panel">
+            {statusText}
+          </p>
 
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
             {ALERT_TYPES.map((alertType) => (
@@ -96,39 +108,26 @@ export function GamePage() {
               />
             ))}
           </div>
-        </section>
+        </TechPanel>
 
         <PlayerCard player={room.myPlayer} isActivePlayer={room.isActivePlayer} />
       </div>
 
       {room.isHost ? (
-        <div className="grid gap-3 lg:grid-cols-[1.3fr,1fr]">
-          <HardwarePanel
-            roomRunning={roomRunning}
-            onAlert={async (alertType, source, timestampMs) => {
-              await room.publishAlert(alertType, source, timestampMs);
-            }}
-          />
-          {room.room ? (
-            <HostControls
-              roomStatus={room.room.status}
-              onStart={() => void room.startRoom()}
-              onForceNext={() => void room.forceNextTurn()}
-              onEnd={() => void room.endRoom()}
-            />
-          ) : null}
-        </div>
+        <HardwarePanel
+          roomRunning={roomRunning}
+          onAlert={async (alertType, source, timestampMs) => {
+            await room.publishAlert(alertType, source, timestampMs);
+          }}
+        />
       ) : (
-        <section className="rounded-xl border border-factory-line bg-factory-panel p-4 text-sm text-factory-muted">
-          Waiting for host hardware gateway events.
-        </section>
+        <TechPanel>
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/60">Host Gateway</p>
+          <p className="mt-2 text-sm text-white/75">Waiting for host-generated hardware alerts.</p>
+        </TechPanel>
       )}
 
-      <QueueList
-        players={room.players}
-        activePlayerUid={room.room?.activePlayerUid ?? null}
-        hostUid={room.room?.hostUid ?? null}
-      />
+      <QueueList players={room.players} activePlayerUid={room.room?.activePlayerUid ?? null} hostUid={room.room?.hostUid ?? null} />
     </motion.section>
   );
 }

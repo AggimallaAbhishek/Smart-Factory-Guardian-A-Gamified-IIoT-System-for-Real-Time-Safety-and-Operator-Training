@@ -3,15 +3,15 @@ import type { AlertType } from "@guardian/protocol";
 import clsx from "clsx";
 
 const LABELS: Record<AlertType, string> = {
-  gas: "Gas Leak",
+  gas: "Gas",
   temperature: "Temperature",
   maintenance: "Maintenance"
 };
 
 const BASE_STYLE: Record<AlertType, string> = {
-  gas: "border-red-500/70 bg-red-500/15 text-red-200 shadow-alertRed",
-  temperature: "border-orange-400/70 bg-orange-400/15 text-orange-200 shadow-alertOrange",
-  maintenance: "border-blue-400/70 bg-blue-400/15 text-blue-200 shadow-alertBlue"
+  gas: "border-tech-red/80 bg-tech-red/15 text-tech-red shadow-alertRed",
+  temperature: "border-tech-orange/80 bg-tech-orange/15 text-tech-orange shadow-alertOrange",
+  maintenance: "border-tech-blue/80 bg-tech-blue/15 text-tech-blue shadow-alertBlue"
 };
 
 interface AlertButtonProps {
@@ -29,16 +29,16 @@ export function AlertButton({ type, active, disabled, onClick }: AlertButtonProp
       transition={{ duration: 0.12 }}
       data-testid={`alert-${type}`}
       className={clsx(
-        "relative flex min-h-[92px] w-full items-center justify-center rounded-xl border px-3 py-4 text-base font-semibold uppercase tracking-wide transition-colors sm:min-h-[112px] sm:text-lg",
+        "tech-cut relative flex min-h-[86px] w-full items-center justify-center border px-3 py-4 text-base font-bold uppercase tracking-[0.2em] transition-all sm:min-h-[96px] sm:text-lg",
         BASE_STYLE[type],
-        active ? "animate-pulseNeon" : "opacity-85",
+        active ? "animate-pulseAlert brightness-110" : "opacity-80",
         disabled ? "cursor-not-allowed opacity-45" : "cursor-pointer"
       )}
       disabled={disabled}
       onClick={() => onClick(type)}
     >
       <span className="pointer-events-none z-10">{LABELS[type]}</span>
-      {active ? <span className="absolute inset-0 rounded-xl border border-white/40" /> : null}
+      {active ? <span className="absolute inset-0 border border-white/40" /> : null}
     </motion.button>
   );
 }
