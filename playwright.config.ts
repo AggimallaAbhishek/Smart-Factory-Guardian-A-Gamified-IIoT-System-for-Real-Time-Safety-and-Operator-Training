@@ -20,6 +20,6 @@ export default defineConfig({
     command: "VITE_E2E_AUTH_MOCK=true npm run dev:web",
     port: 5173,
     timeout: 30_000,
-    reuseExistingServer: true
+    reuseExistingServer: false
   }
 });

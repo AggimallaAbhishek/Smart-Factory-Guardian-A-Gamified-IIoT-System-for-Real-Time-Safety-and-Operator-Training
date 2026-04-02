@@ -78,6 +78,7 @@ export function LoginPage() {
 
         <form onSubmit={onSubmit} className="space-y-5">
           <TechInput
+            id="operator-id"
             label="Operator ID"
             icon={<UserIcon />}
             mono
@@ -85,9 +86,11 @@ export function LoginPage() {
             onChange={(event) => setOperatorId(event.target.value)}
             placeholder="OP-7734"
             autoComplete="username"
+            data-testid="operator-id"
           />
 
           <TechInput
+            id="passcode"
             label="Passcode"
             icon={<LockIcon />}
             mono
@@ -96,6 +99,7 @@ export function LoginPage() {
             placeholder="••••••••"
             autoComplete="current-password"
             type="password"
+            data-testid="passcode"
           />
 
           <TechActionButton

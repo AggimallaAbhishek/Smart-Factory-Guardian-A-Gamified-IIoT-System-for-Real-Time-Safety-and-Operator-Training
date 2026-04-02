@@ -12,8 +12,8 @@ import { firebaseAuth, firestoreDb, isFirebaseConfigured } from "../../firebase/
 import { logger } from "../../lib/logger";
 import type { AuthUser } from "../rooms/types";
 
-const SESSION_AUTH_USER_KEY = "guardian.demo.authUser";
-const authListeners = new Set<(user: AuthUser | null) => void>();
+const TEST_AUTH_USER_KEY = "guardian.test.authUser";
+const testAuthListeners = new Set<(user: AuthUser | null) => void>();
 
 const authPersistence = {
   initialized: false,
@@ -21,7 +21,6 @@ const authPersistence = {
 };
 
 const isTestAuthEnabled = import.meta.env.VITE_E2E_AUTH_MOCK === "true";
-const isFirebaseMode = isFirebaseConfigured && Boolean(firebaseAuth);
 
 function prettifyLocalPart(localPart: string) {
   return localPart
@@ -43,53 +42,24 @@ export function mapFirebaseUser(user: User): AuthUser {
   };
 }
 
-function createDemoUser(): AuthUser {
-  return {
-    uid: "demo-" + Date.now() + "-" + Math.random().toString(16).slice(2, 6),
-    displayName: "Demo Operator " + Math.floor(Math.random() * 90 + 10),
-    email: null,
-    photoURL: null
-  };
-}
-
-function readSessionUser() {
-  const raw = sessionStorage.getItem(SESSION_AUTH_USER_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as AuthUser;
-  } catch (error) {
-    logger.warn("Unable to parse demo auth user", {
-      error: String(error)
-    });
-    return null;
-  }
-}
-
-function writeSessionUser(user: AuthUser | null) {
-  if (!user) {
-    sessionStorage.removeItem(SESSION_AUTH_USER_KEY);
-  } else {
-    sessionStorage.setItem(SESSION_AUTH_USER_KEY, JSON.stringify(user));
-  }
-
-  for (const listener of authListeners) {
-    listener(user);
-  }
-}
-
-function getFirebaseAuth() {
-  if (!firebaseAuth) {
-    return null;
+function requireFirebaseAuth() {
+  if (!isFirebaseConfigured || !firebaseAuth) {
+    throw new Error("Firebase Auth is not configured. Add VITE_FIREBASE_* values.");
   }
 
   return firebaseAuth;
 }
 
+function requireFirestore() {
+  if (!isFirebaseConfigured || !firestoreDb) {
+    throw new Error("Firestore is not configured. Add VITE_FIREBASE_* values.");
+  }
+
+  return firestoreDb;
+}
+
 async function ensureLocalPersistence() {
-  if (!isFirebaseMode || authPersistence.initialized) {
+  if (isTestAuthEnabled || authPersistence.initialized) {
     return;
   }
 
@@ -97,11 +67,7 @@ async function ensureLocalPersistence() {
     return authPersistence.pending;
   }
 
-  const auth = getFirebaseAuth();
-  if (!auth) {
-    return;
-  }
-
+  const auth = requireFirebaseAuth();
   authPersistence.pending = setPersistence(auth, browserLocalPersistence)
     .then(() => {
       authPersistence.initialized = true;
@@ -123,13 +89,11 @@ async function ensureLocalPersistence() {
 }
 
 export async function upsertUserProfile(user: AuthUser) {
-  if (!firestoreDb) {
-    return;
-  }
-
+  const db = requireFirestore();
   const nowMs = Date.now();
+
   await setDoc(
-    doc(firestoreDb, "users", user.uid),
+    doc(db, "users", user.uid),
     {
       uid: user.uid,
       name: user.displayName,
@@ -140,26 +104,50 @@ export async function upsertUserProfile(user: AuthUser) {
     },
     { merge: true }
   );
+
+  logger.debug("User profile upserted", {
+    uid: user.uid
+  });
+}
+
+function readTestAuthUser() {
+  const raw = localStorage.getItem(TEST_AUTH_USER_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch (error) {
+    logger.warn("Unable to parse test auth user", {
+      error: String(error)
+    });
+    return null;
+  }
+}
+
+function writeTestAuthUser(user: AuthUser | null) {
+  if (!user) {
+    localStorage.removeItem(TEST_AUTH_USER_KEY);
+  } else {
+    localStorage.setItem(TEST_AUTH_USER_KEY, JSON.stringify(user));
+  }
+
+  for (const listener of testAuthListeners) {
+    listener(user);
+  }
 }
 
 export function subscribeAuthState(listener: (user: AuthUser | null) => void) {
-  if (!isFirebaseMode || isTestAuthEnabled) {
-    authListeners.add(listener);
-    listener(readSessionUser());
+  if (isTestAuthEnabled) {
+    testAuthListeners.add(listener);
+    listener(readTestAuthUser());
     return () => {
-      authListeners.delete(listener);
+      testAuthListeners.delete(listener);
     };
   }
 
-  const auth = getFirebaseAuth();
-  if (!auth) {
-    authListeners.add(listener);
-    listener(readSessionUser());
-    return () => {
-      authListeners.delete(listener);
-    };
-  }
-
+  const auth = requireFirebaseAuth();
   void ensureLocalPersistence();
 
   return onAuthStateChanged(auth, (user) => {
@@ -175,24 +163,25 @@ export function subscribeAuthState(listener: (user: AuthUser | null) => void) {
         error: String(error)
       });
     });
+
     listener(mapped);
   });
 }
 
 export async function signInWithGoogle() {
-  if (!isFirebaseMode || isTestAuthEnabled) {
-    const demoUser = createDemoUser();
-    writeSessionUser(demoUser);
-    return demoUser;
+  if (isTestAuthEnabled) {
+    const testUser: AuthUser = {
+      uid: "test-operator",
+      displayName: "Test Operator",
+      email: "test.operator@example.com",
+      photoURL: null
+    };
+    writeTestAuthUser(testUser);
+    logger.info("Using test auth mode for sign-in");
+    return testUser;
   }
 
-  const auth = getFirebaseAuth();
-  if (!auth) {
-    const demoUser = createDemoUser();
-    writeSessionUser(demoUser);
-    return demoUser;
-  }
-
+  const auth = requireFirebaseAuth();
   await ensureLocalPersistence();
 
   logger.info("Starting Firebase Google auth flow");
@@ -208,20 +197,15 @@ export async function signInWithGoogle() {
 }
 
 export async function signOutUser() {
-  if (!isFirebaseMode || isTestAuthEnabled) {
-    writeSessionUser(null);
+  if (isTestAuthEnabled) {
+    writeTestAuthUser(null);
     return;
   }
 
-  const auth = getFirebaseAuth();
-  if (!auth) {
-    writeSessionUser(null);
-    return;
-  }
-
+  const auth = requireFirebaseAuth();
   await signOut(auth);
 }
 
 export function isGoogleAuthActive() {
-  return isFirebaseMode && !isTestAuthEnabled;
+  return true;
 }

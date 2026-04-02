@@ -1,61 +1,79 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomDoc } from "./types";
-import { __resetResponseMarkersForTests, submitResponse } from "./responseService";
 
-const submitResponseMock = vi.fn(async () => undefined);
+const submitResponseMock = vi.hoisted(() => vi.fn());
 
-vi.mock("./repository", () => {
-  return {
-    getRoomRepository: () => ({
-      submitResponse: submitResponseMock
-    })
-  };
-});
+vi.mock("./repository", () => ({
+  getRoomRepository: () => ({
+    submitResponse: submitResponseMock
+  })
+}));
 
 function roomFixture(): RoomDoc {
   return {
     hostUid: "host",
     status: "running",
     turnDurationSec: 60,
-    activePlayerUid: "u1",
-    turnStartedAtMs: 1_000,
-    turnEndsAtMs: 61_000,
+    activePlayerUid: "host",
+    turnStartedAtMs: 1000,
+    turnEndsAtMs: 61000,
     turnNumber: 1,
     activeAlert: {
       alertId: "alert-1",
       type: "gas",
-      issuedAtMs: 2_000,
+      issuedAtMs: 10_000,
       source: "mock",
       turnNumber: 1,
-      turnOwnerUid: "u1"
+      turnOwnerUid: "host"
     },
-    lastHostHeartbeatMs: 900,
-    createdAtMs: 100,
+    lastHostHeartbeatMs: 1000,
+    createdAtMs: 1000,
     endedAtMs: null,
-    playerQueue: ["u1", "u2"]
+    playerQueue: ["host", "guest"]
   };
 }
 
 describe("responseService", () => {
-  beforeEach(() => {
-    submitResponseMock.mockClear();
-    __resetResponseMarkersForTests();
+  beforeEach(async () => {
+    submitResponseMock.mockReset().mockResolvedValue(undefined);
+    const module = await import("./responseService");
+    module.__resetResponseMarkersForTests();
   });
 
-  it("accepts first valid submission", async () => {
-    const outcome = await submitResponse("ROOM01", "u1", roomFixture(), "gas", 2_300);
-    expect(outcome.accepted).toBe(true);
-    expect(submitResponseMock).toHaveBeenCalledTimes(1);
+  it("rejects non-active player responses", async () => {
+    const module = await import("./responseService");
+    const room = roomFixture();
+
+    await expect(module.submitResponse("ROOM1", "guest", room, "gas", 12_000)).rejects.toThrow(
+      "Only active player can submit response."
+    );
+    expect(submitResponseMock).not.toHaveBeenCalled();
   });
 
-  it("rejects duplicate submission for same alert window", async () => {
-    await submitResponse("ROOM01", "u1", roomFixture(), "gas", 2_300);
-    const duplicate = await submitResponse("ROOM01", "u1", roomFixture(), "gas", 2_450);
+  it("prevents rapid duplicate submissions for same actor", async () => {
+    const module = await import("./responseService");
+    const room = roomFixture();
 
+    const first = await module.submitResponse("ROOM1", "host", room, "gas", 12_000);
+    const duplicate = await module.submitResponse("ROOM1", "host", room, "gas", 12_050);
+
+    expect(first.accepted).toBe(true);
     expect(duplicate).toEqual({
       accepted: false,
       reason: "duplicate_or_rate_limited"
     });
     expect(submitResponseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts valid active-player responses", async () => {
+    const module = await import("./responseService");
+    const room = roomFixture();
+
+    const result = await module.submitResponse("ROOM1", "host", room, "gas", 12_300);
+
+    expect(result).toEqual({
+      accepted: true
+    });
+    expect(submitResponseMock).toHaveBeenCalledWith("ROOM1", "host", "gas", 12_300);
   });
 });

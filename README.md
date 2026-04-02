@@ -1,10 +1,11 @@
-# Smart Factory Guardian (Phase 1)
+# Smart Factory Guardian
 
-A gamified IIoT safety training MVP with:
-- Web game UI (`apps/web`)
-- Local HC-05 bridge (`services/bridge`)
+Smart Factory Guardian is a multiplayer IIoT training game with:
+- React + Tailwind terminal UI (`apps/web`)
+- Firebase Google Authentication + Firestore room state
+- Real-time host-driven alert gameplay (mock source v1, hardware abstraction ready)
 - Shared protocol/domain logic (`packages/*`)
-- Arduino firmware (`firmware/arduino-guardian`)
+- Optional local HC-05 bridge (`services/bridge`) for future hardware modes
 
 ## Quick Start
 
@@ -14,10 +15,15 @@ A gamified IIoT safety training MVP with:
 npm install
 ```
 
-2. Start bridge (generates a launch token if not provided):
+2. Configure Firebase env vars in `apps/web/.env.local`:
 
 ```bash
-npm run dev:bridge
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
 ```
 
 3. Start web app:
@@ -26,7 +32,25 @@ npm run dev:bridge
 npm run dev:web
 ```
 
-4. Open `http://127.0.0.1:5173`, paste bridge token, select source, and run a 60-second session.
+4. Open `http://127.0.0.1:5173`, sign in with Google, create/join a room, and run the 60-second turn gameplay.
+
+## Firebase Security Rules
+
+Firestore rules are in:
+
+```bash
+firebase/firestore.rules
+```
+
+Deploy them with your Firebase CLI workflow for your target project.
+
+## Optional Bridge (future source adapter)
+
+Bridge server can still be started for future hardware source work:
+
+```bash
+npm run dev:bridge
+```
 
 ## Test Commands
 
@@ -34,16 +58,3 @@ npm run dev:web
 npm run test:unit
 npm run test:e2e
 ```
-
-## Hardware Verification Checklist
-
-1. Pair HC-05 with host machine.
-2. Identify serial path (macOS example: `/dev/tty.HC-05-DevB`).
-3. Start bridge with allowed origin and optional token:
-
-```bash
-BRIDGE_TOKEN=mytoken npm run dev:bridge
-```
-
-4. Connect from web app using source `serial` and the matching serial path.
-5. Confirm alerts arrive in UI and score updates correctly.
