@@ -1,4 +1,5 @@
 import { logger } from "../../lib/logger";
+import { wrapRoomError } from "./errorMessages";
 import { getRoomRepository } from "./repository";
 import { roomCodeSchema } from "./schemas";
 import type { AuthUser } from "./types";
@@ -8,35 +9,55 @@ function normalizeRoomCode(roomCode: string) {
 }
 
 export async function createRoom(user: AuthUser) {
-  const repository = getRoomRepository();
-  const roomId = await repository.createRoom(user);
-  logger.info("Room created", {
-    roomId,
-    uid: user.uid
-  });
-  return roomId;
+  try {
+    const repository = getRoomRepository();
+    const roomId = await repository.createRoom(user);
+    logger.info("Room created", {
+      roomId,
+      uid: user.uid
+    });
+    return roomId;
+  } catch (error) {
+    throw wrapRoomError(error, "Create room");
+  }
 }
 
 export async function joinRoom(roomCode: string, user: AuthUser) {
-  const roomId = normalizeRoomCode(roomCode);
-  await getRoomRepository().joinRoom(roomId, user);
-  logger.info("Player joined room", {
-    roomId,
-    uid: user.uid
-  });
-  return roomId;
+  try {
+    const roomId = normalizeRoomCode(roomCode);
+    await getRoomRepository().joinRoom(roomId, user);
+    logger.info("Player joined room", {
+      roomId,
+      uid: user.uid
+    });
+    return roomId;
+  } catch (error) {
+    throw wrapRoomError(error, "Join room");
+  }
 }
 
 export async function startRoom(roomId: string, actorUid: string) {
-  await getRoomRepository().startRoom(normalizeRoomCode(roomId), actorUid);
+  try {
+    await getRoomRepository().startRoom(normalizeRoomCode(roomId), actorUid);
+  } catch (error) {
+    throw wrapRoomError(error, "Start room");
+  }
 }
 
 export async function endRoom(roomId: string, actorUid: string) {
-  await getRoomRepository().endRoom(normalizeRoomCode(roomId), actorUid);
+  try {
+    await getRoomRepository().endRoom(normalizeRoomCode(roomId), actorUid);
+  } catch (error) {
+    throw wrapRoomError(error, "End room");
+  }
 }
 
 export async function setPlayerConnection(roomId: string, uid: string, connected: boolean) {
-  await getRoomRepository().setPlayerConnection(normalizeRoomCode(roomId), uid, connected);
+  try {
+    await getRoomRepository().setPlayerConnection(normalizeRoomCode(roomId), uid, connected);
+  } catch (error) {
+    throw wrapRoomError(error, "Update player connection");
+  }
 }
 
 export function subscribeRoom(roomId: string, callback: Parameters<ReturnType<typeof getRoomRepository>["subscribeRoom"]>[1]) {

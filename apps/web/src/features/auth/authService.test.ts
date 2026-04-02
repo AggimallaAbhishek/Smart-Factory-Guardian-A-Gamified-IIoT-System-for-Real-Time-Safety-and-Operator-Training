@@ -106,6 +106,29 @@ describe("authService", () => {
     );
   });
 
+  it("does not block sign-in when Firestore profile sync fails", async () => {
+    const service = await loadAuthService();
+    mocks.signInWithPopup.mockResolvedValue({
+      user: {
+        uid: "operator-4",
+        displayName: "Operator Four",
+        email: "operator4@example.com",
+        photoURL: null
+      }
+    });
+    mocks.setDoc.mockRejectedValueOnce(new Error("permission-denied"));
+
+    const user = await service.signInWithGoogle();
+
+    expect(user).toEqual(
+      expect.objectContaining({
+        uid: "operator-4",
+        displayName: "Operator Four"
+      })
+    );
+    expect(mocks.logger.warn).toHaveBeenCalled();
+  });
+
   it("subscribeAuthState persists profile on restored session", async () => {
     const service = await loadAuthService();
     const listener = vi.fn();

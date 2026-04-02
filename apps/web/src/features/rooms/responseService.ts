@@ -1,5 +1,6 @@
 import type { AlertType } from "@guardian/protocol";
 import { logger } from "../../lib/logger";
+import { wrapRoomError } from "./errorMessages";
 import { getRoomRepository } from "./repository";
 import { responseRequestSchema } from "./schemas";
 import type { RoomDoc } from "./types";
@@ -75,7 +76,11 @@ export async function submitResponse(
     timestampMs
   });
 
-  await getRoomRepository().submitResponse(roomId, actorUid, responseType, timestampMs);
+  try {
+    await getRoomRepository().submitResponse(roomId, actorUid, responseType, timestampMs);
+  } catch (error) {
+    throw wrapRoomError(error, "Submit response");
+  }
 
   logger.debug("Response submitted", {
     roomId,

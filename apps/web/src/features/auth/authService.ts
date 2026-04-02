@@ -55,8 +55,10 @@ export function getAuthErrorMessage(error: unknown) {
       return "Invalid Firebase API key. Verify VITE_FIREBASE_API_KEY.";
     case "auth/app-not-authorized":
       return "This app is not authorized for Firebase Auth. Verify project app configuration.";
+    case "permission-denied":
+      return "Google sign-in succeeded, but Firestore access is denied. Deploy/update Firestore rules.";
     default:
-      return `${defaultMessage} (${error.code})`;
+      return defaultMessage;
   }
 }
 
@@ -231,7 +233,15 @@ export async function signInWithGoogle() {
   try {
     const result = await signInWithPopup(auth, provider);
     const mapped = mapFirebaseUser(result.user);
-    await upsertUserProfile(mapped);
+    try {
+      await upsertUserProfile(mapped);
+    } catch (profileError) {
+      logger.warn("Sign-in completed but profile sync failed", {
+        uid: mapped.uid,
+        code: profileError instanceof FirebaseError ? profileError.code : "unknown",
+        error: String(profileError)
+      });
+    }
     return mapped;
   } catch (error) {
     logger.error("Firebase Google auth popup failed", {
