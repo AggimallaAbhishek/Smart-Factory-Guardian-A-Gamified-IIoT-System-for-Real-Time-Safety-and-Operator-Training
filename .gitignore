@@ -5,5 +5,10 @@ coverage
 playwright-report
 test-results
 *.log
+**/tsconfig.tsbuildinfo
+apps/web/src/**/*.js
+apps/web/vite.config.js
+packages/domain/src/**/*.js
+packages/protocol/src/**/*.js
 .DS_Store
 .env
