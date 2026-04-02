@@ -3,6 +3,7 @@ import { HostControls } from "../components/multiplayer/HostControls";
 import { LeaderboardTable } from "../components/multiplayer/LeaderboardTable";
 import { PlayerCard } from "../components/multiplayer/PlayerCard";
 import { QueueList } from "../components/multiplayer/QueueList";
+import { RoomInvitePanel } from "../components/multiplayer/RoomInvitePanel";
 import { TechPanel } from "../components/ui/TechPanel";
 import { useRoomContext } from "../features/rooms/RoomContext";
 
@@ -21,6 +22,8 @@ export function LobbyPage() {
         <h1 className="text-2xl font-bold uppercase tracking-[0.16em] text-white">Lobby</h1>
         <p className="mt-1 text-sm text-white/70">Player queue is live. Host starts the room when all operators are ready.</p>
       </TechPanel>
+
+      {room.isHost ? <RoomInvitePanel roomId={room.roomId} /> : null}
 
       <div className="grid gap-3 xl:grid-cols-[1.3fr,1fr]">
         <QueueList players={room.players} activePlayerUid={room.room?.activePlayerUid ?? null} hostUid={room.room?.hostUid ?? null} />

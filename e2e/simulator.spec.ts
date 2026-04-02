@@ -14,6 +14,8 @@ test("login + room flow with mock signals", async ({ page }) => {
   await page.getByTestId("create-room").click();
   await expect(page).toHaveURL(/\/room\/[A-Z0-9]+\/lobby$/);
   await expect(page.getByTestId("room-id")).toBeVisible();
+  await expect(page.getByTestId("room-qr-image")).toBeVisible();
+  await expect(page.getByTestId("share-whatsapp")).toBeVisible();
   await expect(page.getByTestId("queue-list")).toBeVisible();
 
   await page.getByTestId("host-start").click();
