@@ -1,6 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@guardian/protocol": ["../../packages/protocol/src/index.ts"]
+    },
     "rootDir": "src",
     "outDir": "dist",
     "declaration": true,

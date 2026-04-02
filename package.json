@@ -12,15 +12,16 @@
     "dev:web": "npm --workspace @guardian/web run dev",
     "dev:bridge": "npm --workspace @guardian/bridge run dev",
     "dev:bridge:test": "BRIDGE_PORT=8787 BRIDGE_TOKEN=test-token BRIDGE_ALLOW_ORIGINS=http://127.0.0.1:5173 npm --workspace @guardian/bridge run dev",
-    "build": "npm run -ws build",
+    "build": "npm run --workspaces build",
     "test": "npm run test:unit",
-    "test:unit": "npm run -ws test",
+    "test:unit": "npm run --workspaces test",
     "test:e2e": "playwright test",
-    "lint": "npm run -ws lint"
+    "lint": "npm run --workspaces lint"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
     "@types/node": "^22.17.2",
+    "@types/ws": "^8.18.1",
     "concurrently": "^9.2.1",
     "typescript": "^5.9.2",
     "vitest": "^2.1.9"
