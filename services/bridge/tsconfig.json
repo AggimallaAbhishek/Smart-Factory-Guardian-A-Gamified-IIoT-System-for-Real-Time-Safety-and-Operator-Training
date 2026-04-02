@@ -5,10 +5,9 @@
     "paths": {
       "@guardian/protocol": ["../../packages/protocol/src/index.ts"]
     },
-    "rootDir": "src",
     "outDir": "dist",
-    "declaration": true,
-    "composite": true
+    "declaration": true
   },
-  "include": ["src", "test"]
+  "include": ["src", "../../packages/protocol/src/**/*.ts"],
+  "exclude": ["../../packages/protocol/src/**/*.test.ts"]
 }

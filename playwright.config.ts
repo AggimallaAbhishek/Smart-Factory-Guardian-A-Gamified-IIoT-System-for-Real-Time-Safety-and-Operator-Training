@@ -19,7 +19,7 @@ export default defineConfig({
   webServer: [
     {
       command: "npm run dev:bridge:test",
-      url: "ws://127.0.0.1:8787",
+      port: 8787,
       timeout: 30_000,
       reuseExistingServer: true
     },

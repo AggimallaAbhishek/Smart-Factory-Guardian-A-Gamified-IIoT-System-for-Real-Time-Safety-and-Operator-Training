@@ -79,7 +79,7 @@ export class SimulatorSource implements FrameSource {
   private pickAlertType(): AlertType {
     const sequence = this.options.deterministicSequence ?? FALLBACK_SEQUENCE;
     if (this.options.deterministicSequence && sequence.length > 0) {
-      const selected = sequence[this.sequenceCursor % sequence.length];
+      const selected = sequence[this.sequenceCursor % sequence.length] ?? "gas";
       this.sequenceCursor += 1;
       return selected;
     }
