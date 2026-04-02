@@ -4,6 +4,9 @@ const mocks = vi.hoisted(() => ({
   setPersistence: vi.fn(),
   onAuthStateChanged: vi.fn(),
   signInWithPopup: vi.fn(),
+  signInWithEmailAndPassword: vi.fn(),
+  createUserWithEmailAndPassword: vi.fn(),
+  updateProfile: vi.fn(),
   signOut: vi.fn(),
   doc: vi.fn(),
   setDoc: vi.fn(),
@@ -26,6 +29,9 @@ vi.mock("firebase/auth", () => ({
   onAuthStateChanged: mocks.onAuthStateChanged,
   setPersistence: mocks.setPersistence,
   signInWithPopup: mocks.signInWithPopup,
+  signInWithEmailAndPassword: mocks.signInWithEmailAndPassword,
+  createUserWithEmailAndPassword: mocks.createUserWithEmailAndPassword,
+  updateProfile: mocks.updateProfile,
   signOut: mocks.signOut
 }));
 
@@ -54,6 +60,9 @@ describe("authService", () => {
     mocks.setPersistence.mockReset().mockResolvedValue(undefined);
     mocks.onAuthStateChanged.mockReset().mockReturnValue(() => {});
     mocks.signInWithPopup.mockReset();
+    mocks.signInWithEmailAndPassword.mockReset();
+    mocks.createUserWithEmailAndPassword.mockReset();
+    mocks.updateProfile.mockReset().mockResolvedValue(undefined);
     mocks.signOut.mockReset().mockResolvedValue(undefined);
     mocks.doc.mockReset().mockImplementation((_db, collectionName: string, docId: string) => ({
       path: `${collectionName}/${docId}`
@@ -76,6 +85,11 @@ describe("authService", () => {
 
     expect(mapped.displayName).toBe("Line Operator");
     expect(mapped.uid).toBe("operator-1");
+  });
+
+  it("maps operator id to email alias", async () => {
+    const service = await loadAuthService();
+    expect(service.operatorIdToEmail("OP-7734")).toBe("op-7734@operator.guardian.local");
   });
 
   it("signInWithGoogle configures persistence and upserts user profile", async () => {
@@ -103,6 +117,57 @@ describe("authService", () => {
         email: "test.user@example.com"
       }),
       { merge: true }
+    );
+  });
+
+  it("registers operator credentials and sets display name", async () => {
+    const service = await loadAuthService();
+    mocks.createUserWithEmailAndPassword.mockResolvedValue({
+      user: {
+        uid: "operator-7",
+        displayName: null,
+        email: "op-7734@operator.guardian.local",
+        photoURL: null
+      }
+    });
+
+    const user = await service.registerWithCredentials("OP-7734", "12345678");
+
+    expect(mocks.createUserWithEmailAndPassword).toHaveBeenCalledWith(
+      firebaseAuthMock,
+      "op-7734@operator.guardian.local",
+      "12345678"
+    );
+    expect(mocks.updateProfile).toHaveBeenCalled();
+    expect(user.displayName).toBe("OP-7734");
+  });
+
+  it("signs in using operator credentials", async () => {
+    const service = await loadAuthService();
+    mocks.signInWithEmailAndPassword.mockResolvedValue({
+      user: {
+        uid: "operator-8",
+        displayName: "OP-9001",
+        email: "op-9001@operator.guardian.local",
+        photoURL: null
+      }
+    });
+
+    const user = await service.signInWithCredentials("OP-9001", "12345678");
+
+    expect(mocks.signInWithEmailAndPassword).toHaveBeenCalledWith(
+      firebaseAuthMock,
+      "op-9001@operator.guardian.local",
+      "12345678"
+    );
+    expect(user.displayName).toBe("OP-9001");
+  });
+
+  it("returns validation message for short passcode", async () => {
+    const service = await loadAuthService();
+
+    await expect(service.signInWithCredentials("OP-1", "123")).rejects.toThrow(
+      "Passcode must be at least 6 characters."
     );
   });
 

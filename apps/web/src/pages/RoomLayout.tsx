@@ -38,6 +38,7 @@ export function RoomLayout() {
   const [error, setError] = useState<string | null>(null);
 
   const timeoutLockRef = useRef(false);
+  const disconnectLockRef = useRef(false);
 
   useEffect(() => {
     const user = auth.user;
@@ -187,6 +188,40 @@ export function RoomLayout() {
       window.clearInterval(timerId);
     };
   }, [auth.user, room, roomId]);
+
+  useEffect(() => {
+    const user = auth.user;
+    if (!user || !room || room.status !== "running" || room.hostUid !== user.uid || !room.activePlayerUid) {
+      return;
+    }
+
+    const activePlayer = players.find((player) => player.uid === room.activePlayerUid);
+    if (!activePlayer || activePlayer.isConnected || disconnectLockRef.current) {
+      return;
+    }
+
+    disconnectLockRef.current = true;
+    logger.info("Active player disconnected, rotating turn", {
+      roomId,
+      activePlayerUid: activePlayer.uid,
+      hostUid: user.uid
+    });
+
+    void advanceTurn(roomId, user.uid, "disconnect")
+      .catch((caughtError) => {
+        logger.warn("Disconnect turn advance failed", {
+          roomId,
+          hostUid: user.uid,
+          activePlayerUid: activePlayer.uid,
+          error: String(caughtError)
+        });
+      })
+      .finally(() => {
+        window.setTimeout(() => {
+          disconnectLockRef.current = false;
+        }, 350);
+      });
+  }, [auth.user, players, room, roomId]);
 
   const myPlayer = useMemo(() => {
     if (!auth.user) {

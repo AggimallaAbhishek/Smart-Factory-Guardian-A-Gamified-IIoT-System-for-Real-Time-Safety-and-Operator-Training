@@ -64,6 +64,35 @@ function parsePlayer(raw: unknown, roomId: string, uid: string): RoomPlayerDoc |
   return parsed.data;
 }
 
+function clonePlayers(players: Record<string, RoomPlayerDoc>) {
+  const clone: Record<string, RoomPlayerDoc> = {};
+
+  for (const [uid, player] of Object.entries(players)) {
+    clone[uid] = { ...player };
+  }
+
+  return clone;
+}
+
+function arePlayersEqual(left: RoomPlayerDoc, right: RoomPlayerDoc) {
+  return (
+    left.uid === right.uid &&
+    left.displayName === right.displayName &&
+    left.joinedAtMs === right.joinedAtMs &&
+    left.queueOrder === right.queueOrder &&
+    left.isConnected === right.isConnected &&
+    left.totalScore === right.totalScore &&
+    left.correctCount === right.correctCount &&
+    left.wrongCount === right.wrongCount &&
+    left.missCount === right.missCount &&
+    left.responseCount === right.responseCount &&
+    left.responseTimeTotalMs === right.responseTimeTotalMs &&
+    left.avgResponseMs === right.avgResponseMs &&
+    left.accuracy === right.accuracy &&
+    left.turnsPlayed === right.turnsPlayed
+  );
+}
+
 export class FirebaseRoomRepository implements RoomRepository {
   constructor(private readonly db: Firestore) {}
 
@@ -186,6 +215,7 @@ export class FirebaseRoomRepository implements RoomRepository {
   async joinRoom(roomId: string, user: AuthUser) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       if (record.room.status === "ended") {
         throw new Error("Room has already ended.");
       }
@@ -206,7 +236,7 @@ export class FirebaseRoomRepository implements RoomRepository {
 
       record.room.playerQueue = this.rebuildQueue(record.players);
 
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
 
     logger.debug("Player joined Firebase room", {
@@ -218,6 +248,7 @@ export class FirebaseRoomRepository implements RoomRepository {
   async setPlayerConnection(roomId: string, uid: string, connected: boolean) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       const player = record.players[uid];
       if (!player) {
         return;
@@ -229,10 +260,10 @@ export class FirebaseRoomRepository implements RoomRepository {
       };
 
       if (!connected && record.room.activePlayerUid === uid && record.room.status === "running") {
-        const advanced = advanceTurnState({ room: record.room, players: record.players }, uid, Date.now(), "disconnect");
-        record.room = advanced.room;
-        record.players = advanced.players;
-        this.writeEvents(transaction, roomId, advanced.events);
+        logger.info("Active player disconnected; waiting for host-driven turn advance", {
+          roomId,
+          uid
+        });
       }
 
       if (!connected && record.room.hostUid === uid) {
@@ -253,13 +284,14 @@ export class FirebaseRoomRepository implements RoomRepository {
       }
 
       record.room.playerQueue = this.rebuildQueue(record.players);
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
   async startRoom(roomId: string, actorUid: string) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       if (record.room.hostUid !== actorUid) {
         throw new Error("Only host can start this room.");
       }
@@ -307,13 +339,14 @@ export class FirebaseRoomRepository implements RoomRepository {
         }
       ]);
 
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
   async endRoom(roomId: string, actorUid: string) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       if (record.room.hostUid !== actorUid) {
         throw new Error("Only host can end room.");
       }
@@ -338,13 +371,14 @@ export class FirebaseRoomRepository implements RoomRepository {
         }
       ]);
 
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
   async advanceTurn(roomId: string, actorUid: string, reason: "force" | "timeout" | "disconnect") {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       if (record.room.hostUid !== actorUid && reason !== "disconnect") {
         throw new Error("Only host can rotate turn.");
       }
@@ -369,13 +403,14 @@ export class FirebaseRoomRepository implements RoomRepository {
         ]);
       }
 
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
   async publishAlert(roomId: string, actorUid: string, alertType: AlertType, source: HardwareSource, timestampMs: number) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       if (record.room.hostUid !== actorUid) {
         throw new Error("Only host can publish alerts.");
       }
@@ -395,13 +430,14 @@ export class FirebaseRoomRepository implements RoomRepository {
       record.players = published.players;
 
       this.writeEvents(transaction, roomId, published.events);
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
   async submitResponse(roomId: string, actorUid: string, responseType: AlertType, timestampMs: number) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       const responded = submitResponseState(
         {
           room: record.room,
@@ -416,13 +452,14 @@ export class FirebaseRoomRepository implements RoomRepository {
       record.players = responded.players;
 
       this.writeEvents(transaction, roomId, responded.events);
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
   async heartbeat(roomId: string, actorUid: string, timestampMs: number) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       if (record.room.hostUid !== actorUid) {
         return;
       }
@@ -432,13 +469,14 @@ export class FirebaseRoomRepository implements RoomRepository {
         lastHostHeartbeatMs: timestampMs
       };
 
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
   async transferHostIfStale(roomId: string, actorUid: string, timestampMs: number, staleThresholdMs: number) {
     await runTransaction(this.db, async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
       const transfer = transferHostIfStaleState(
         {
           room: record.room,
@@ -454,7 +492,7 @@ export class FirebaseRoomRepository implements RoomRepository {
         this.writeEvents(transaction, roomId, [transfer.event]);
       }
 
-      this.writeRoomRecord(transaction, roomId, record);
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
 
@@ -489,7 +527,12 @@ export class FirebaseRoomRepository implements RoomRepository {
     };
   }
 
-  private writeRoomRecord(transaction: Transaction, roomId: string, record: TxRecord) {
+  private writeRoomRecord(
+    transaction: Transaction,
+    roomId: string,
+    record: TxRecord,
+    previousPlayers: Record<string, RoomPlayerDoc> | null = null
+  ) {
     const roomRef = doc(this.db, "rooms", roomId);
     transaction.set(roomRef, {
       ...record.room,
@@ -497,6 +540,12 @@ export class FirebaseRoomRepository implements RoomRepository {
     });
 
     for (const [uid, player] of Object.entries(record.players)) {
+      if (previousPlayers) {
+        const previous = previousPlayers[uid];
+        if (previous && arePlayersEqual(previous, player)) {
+          continue;
+        }
+      }
       transaction.set(doc(this.db, "rooms", roomId, "players", uid), player);
     }
   }

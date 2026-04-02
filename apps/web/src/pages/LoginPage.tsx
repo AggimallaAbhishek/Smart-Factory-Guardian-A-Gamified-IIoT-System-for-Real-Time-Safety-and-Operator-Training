@@ -29,6 +29,7 @@ export function LoginPage() {
   const location = useLocation();
   const [operatorId, setOperatorId] = useState("");
   const [passcode, setPasscode] = useState("");
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [submitting, setSubmitting] = useState(false);
   const redirectTo = useMemo(() => {
     const state = location.state as { redirectTo?: string } | null;
@@ -41,6 +42,23 @@ export function LoginPage() {
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submitting) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      if (mode === "register") {
+        await auth.registerWithCredentials(operatorId, passcode);
+      } else {
+        await auth.signInWithCredentials(operatorId, passcode);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const onGoogleSignIn = async () => {
     if (submitting) {
       return;
     }
@@ -77,6 +95,29 @@ export function LoginPage() {
         </div>
 
         <form onSubmit={onSubmit} className="space-y-5">
+          <div className="grid grid-cols-2 gap-2">
+            <TechActionButton
+              type="button"
+              tone={mode === "login" ? "blue" : "neutral"}
+              className="w-full"
+              onClick={() => setMode("login")}
+              disabled={submitting}
+              data-testid="mode-login"
+            >
+              Sign In
+            </TechActionButton>
+            <TechActionButton
+              type="button"
+              tone={mode === "register" ? "green" : "neutral"}
+              className="w-full"
+              onClick={() => setMode("register")}
+              disabled={submitting}
+              data-testid="mode-register"
+            >
+              Register
+            </TechActionButton>
+          </div>
+
           <TechInput
             id="operator-id"
             label="Operator ID"
@@ -104,10 +145,21 @@ export function LoginPage() {
 
           <TechActionButton
             type="submit"
+            tone={mode === "register" ? "green" : "blue"}
+            className="w-full py-4 text-lg tracking-[0.28em]"
+            data-testid="credential-submit"
+            disabled={submitting || auth.loading}
+          >
+            {submitting ? "Verifying..." : mode === "register" ? "Register Operator ID" : "Sign in with Passcode"}
+          </TechActionButton>
+
+          <TechActionButton
+            type="button"
             tone="blue"
             className="w-full py-4 text-lg tracking-[0.28em]"
             data-testid="google-login"
             disabled={submitting || auth.loading}
+            onClick={() => void onGoogleSignIn()}
           >
             {submitting ? "Verifying..." : "Sign in with Google"}
           </TechActionButton>
@@ -115,7 +167,7 @@ export function LoginPage() {
 
         {auth.error ? <p className="mt-4 text-center font-mono text-xs tracking-[0.12em] text-tech-red">{auth.error}</p> : null}
         <p className="mt-4 text-center font-mono text-[10px] tracking-[0.16em] text-white/45">
-          OPERATOR_ID and PASSCODE fields are retained for terminal UI continuity.
+          Use Register once to create Operator ID credentials, then Sign In with the same Operator ID and Passcode.
         </p>
       </motion.section>
     </TerminalShell>

@@ -9,10 +9,22 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
+    function roomPath(roomId) {
+      return /databases/$(database)/documents/rooms/$(roomId);
+    }
+
+    function roomExists(roomId) {
+      return exists(roomPath(roomId));
+    }
+
+    function roomData(roomId) {
+      return get(roomPath(roomId)).data;
+    }
+
     function isRoomHost(roomId) {
       return signedIn()
-        && exists(/databases/$(database)/documents/rooms/$(roomId))
-        && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostUid == request.auth.uid;
+        && roomExists(roomId)
+        && roomData(roomId).hostUid == request.auth.uid;
     }
 
     function isRoomParticipant(roomId) {
@@ -20,22 +32,48 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/rooms/$(roomId)/players/$(request.auth.uid));
     }
 
-    match /users/{uid} {
-      allow read, write: if isSelf(uid);
+    // Non-host users can append themselves to queue without changing active gameplay fields.
+    function isQueueJoinUpdate(roomId) {
+      return signedIn()
+        && roomExists(roomId)
+        && roomData(roomId).status != "ended"
+        && request.resource.data.hostUid == resource.data.hostUid
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.turnDurationSec == resource.data.turnDurationSec
+        && request.resource.data.activePlayerUid == resource.data.activePlayerUid
+        && request.resource.data.turnStartedAtMs == resource.data.turnStartedAtMs
+        && request.resource.data.turnEndsAtMs == resource.data.turnEndsAtMs
+        && request.resource.data.turnNumber == resource.data.turnNumber
+        && request.resource.data.activeAlert == resource.data.activeAlert
+        && request.resource.data.lastHostHeartbeatMs == resource.data.lastHostHeartbeatMs
+        && request.resource.data.createdAtMs == resource.data.createdAtMs
+        && request.resource.data.endedAtMs == resource.data.endedAtMs;
     }
 
-    match /rooms/{roomId} {
-      allow read: if isRoomHost(roomId) || isRoomParticipant(roomId);
-
-      allow create: if signedIn()
-        && request.resource.data.hostUid == request.auth.uid
-        && request.resource.data.status == "lobby";
-
-      // Room lifecycle updates are host-controlled. Participants can only perform
-      // queue/connection metadata updates without changing gameplay control fields.
-      allow update: if isRoomHost(roomId) || (
-        isRoomParticipant(roomId)
+    // Active player resolves only the current alert without mutating turn ownership/state.
+    function isActivePlayerResponseUpdate(roomId) {
+      return isRoomParticipant(roomId)
+        && resource.data.activePlayerUid == request.auth.uid
+        && resource.data.activeAlert != null
+        && request.resource.data.activeAlert == null
         && request.resource.data.hostUid == resource.data.hostUid
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.turnDurationSec == resource.data.turnDurationSec
+        && request.resource.data.activePlayerUid == resource.data.activePlayerUid
+        && request.resource.data.turnStartedAtMs == resource.data.turnStartedAtMs
+        && request.resource.data.turnEndsAtMs == resource.data.turnEndsAtMs
+        && request.resource.data.turnNumber == resource.data.turnNumber
+        && request.resource.data.lastHostHeartbeatMs == resource.data.lastHostHeartbeatMs
+        && request.resource.data.createdAtMs == resource.data.createdAtMs
+        && request.resource.data.endedAtMs == resource.data.endedAtMs
+        && request.resource.data.playerQueue == resource.data.playerQueue;
+    }
+
+    // Host claim transfer path (stale-host recovery) keeps gameplay fields unchanged.
+    function isHostClaimUpdate(roomId) {
+      return signedIn()
+        && roomExists(roomId)
+        && request.resource.data.hostUid == request.auth.uid
         && request.resource.data.status == resource.data.status
         && request.resource.data.turnDurationSec == resource.data.turnDurationSec
         && request.resource.data.activePlayerUid == resource.data.activePlayerUid
@@ -45,23 +83,55 @@ service cloud.firestore {
         && request.resource.data.activeAlert == resource.data.activeAlert
         && request.resource.data.createdAtMs == resource.data.createdAtMs
         && request.resource.data.endedAtMs == resource.data.endedAtMs
-      );
+        && request.resource.data.playerQueue == resource.data.playerQueue;
+    }
+
+    match /users/{uid} {
+      allow read, write: if isSelf(uid);
+    }
+
+    match /rooms/{roomId} {
+      // Room reads are required for create/join transactions.
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.status == "lobby"
+        && request.resource.data.turnDurationSec == 60
+        && request.resource.data.activePlayerUid == null
+        && request.resource.data.turnStartedAtMs == null
+        && request.resource.data.turnEndsAtMs == null
+        && request.resource.data.turnNumber == 0
+        && request.resource.data.activeAlert == null
+        && request.resource.data.endedAtMs == null
+        && request.resource.data.playerQueue is list;
+
+      allow update: if isRoomHost(roomId)
+        || isQueueJoinUpdate(roomId)
+        || isActivePlayerResponseUpdate(roomId)
+        || isHostClaimUpdate(roomId);
       allow delete: if false;
     }
 
     match /rooms/{roomId}/players/{uid} {
-      allow read: if isRoomHost(roomId) || isRoomParticipant(roomId);
+      allow read: if signedIn();
 
-      // Player records can be created/updated by host or the player itself.
+      // Host controls all player records. Player can modify only their own record.
       allow create, update: if isRoomHost(roomId) || isSelf(uid);
       allow delete: if false;
     }
 
     match /rooms/{roomId}/events/{eventId} {
-      allow read: if isRoomHost(roomId) || isRoomParticipant(roomId);
+      allow read: if signedIn() && (isRoomHost(roomId) || isRoomParticipant(roomId));
 
       // Events are append-only and immutable for auditability.
-      allow create: if isRoomHost(roomId) || isRoomParticipant(roomId);
+      allow create: if signedIn()
+        && request.resource.data.eventId == eventId
+        && request.resource.data.roomId == roomId
+        && request.resource.data.actorUid is string
+        && request.resource.data.timestampMs is int
+        && request.resource.data.payload is map
+        && (isRoomHost(roomId) || isRoomParticipant(roomId));
       allow update, delete: if false;
     }
   }
