@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { logger } from "../../lib/logger";
 import type { AuthUser } from "../rooms/types";
-import { isGoogleAuthActive, signInWithGoogle, signOutUser, subscribeAuthState } from "./authService";
+import {
+  getAuthErrorMessage,
+  isGoogleAuthActive,
+  signInWithGoogle,
+  signOutUser,
+  subscribeAuthState
+} from "./authService";
 
 export function useAuthSession() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -41,7 +47,7 @@ export function useAuthSession() {
       logger.error("Sign-in failed", {
         error: String(caughtError)
       });
-      setError("Google sign-in failed. Verify Firebase configuration and retry.");
+      setError(getAuthErrorMessage(caughtError));
     }
   }, []);
 

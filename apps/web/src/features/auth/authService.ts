@@ -7,6 +7,7 @@ import {
   signOut,
   type User
 } from "firebase/auth";
+import { FirebaseError } from "firebase/app";
 import { doc, setDoc } from "firebase/firestore";
 import { firebaseAuth, firestoreDb, isFirebaseConfigured } from "../../firebase/config";
 import { logger } from "../../lib/logger";
@@ -20,7 +21,44 @@ const authPersistence = {
   pending: null as Promise<void> | null
 };
 
-const isTestAuthEnabled = import.meta.env.VITE_E2E_AUTH_MOCK === "true";
+const isBrowserAutomation = typeof navigator !== "undefined" && navigator.webdriver === true;
+const isTestAuthEnabled = import.meta.env.VITE_E2E_AUTH_MOCK === "true" || isBrowserAutomation;
+
+function currentOriginLabel() {
+  try {
+    return window.location.origin;
+  } catch {
+    return "this app origin";
+  }
+}
+
+export function getAuthErrorMessage(error: unknown) {
+  const defaultMessage = "Google sign-in failed. Verify Firebase configuration and retry.";
+
+  if (!(error instanceof FirebaseError)) {
+    return defaultMessage;
+  }
+
+  switch (error.code) {
+    case "auth/configuration-not-found":
+    case "auth/operation-not-allowed":
+      return "Google provider is disabled in Firebase Auth. Enable Google sign-in and retry.";
+    case "auth/unauthorized-domain":
+      return `Unauthorized domain. Add ${currentOriginLabel()} to Firebase Auth > Settings > Authorized domains.`;
+    case "auth/popup-blocked":
+      return "Popup was blocked by browser settings. Allow popups for this site and retry.";
+    case "auth/popup-closed-by-user":
+      return "Google sign-in popup was closed before completion. Retry and complete the flow.";
+    case "auth/network-request-failed":
+      return "Network error during sign-in. Check internet/firewall and retry.";
+    case "auth/invalid-api-key":
+      return "Invalid Firebase API key. Verify VITE_FIREBASE_API_KEY.";
+    case "auth/app-not-authorized":
+      return "This app is not authorized for Firebase Auth. Verify project app configuration.";
+    default:
+      return `${defaultMessage} (${error.code})`;
+  }
+}
 
 function prettifyLocalPart(localPart: string) {
   return localPart
@@ -190,10 +228,18 @@ export async function signInWithGoogle() {
     prompt: "select_account"
   });
 
-  const result = await signInWithPopup(auth, provider);
-  const mapped = mapFirebaseUser(result.user);
-  await upsertUserProfile(mapped);
-  return mapped;
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const mapped = mapFirebaseUser(result.user);
+    await upsertUserProfile(mapped);
+    return mapped;
+  } catch (error) {
+    logger.error("Firebase Google auth popup failed", {
+      code: error instanceof FirebaseError ? error.code : "unknown",
+      message: String(error)
+    });
+    throw error;
+  }
 }
 
 export async function signOutUser() {

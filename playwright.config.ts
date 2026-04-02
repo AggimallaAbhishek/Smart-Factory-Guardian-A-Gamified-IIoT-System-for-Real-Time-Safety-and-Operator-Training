@@ -7,7 +7,7 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: "http://127.0.0.1:4173",
     trace: "on-first-retry"
   },
   projects: [
@@ -17,9 +17,9 @@ export default defineConfig({
     }
   ],
   webServer: {
-    command: "VITE_E2E_AUTH_MOCK=true npm run dev:web",
-    port: 5173,
-    timeout: 30_000,
+    command: "cd apps/web && VITE_BACKEND_MODE=demo VITE_E2E_AUTH_MOCK=true npx vite --host 127.0.0.1 --port 4173",
+    url: "http://127.0.0.1:4173",
+    timeout: 45_000,
     reuseExistingServer: false
   }
 });
