@@ -5,6 +5,7 @@ import { AlertButton } from "../components/multiplayer/AlertButton";
 import { HardwarePanel } from "../components/multiplayer/HardwarePanel";
 import { PlayerCard } from "../components/multiplayer/PlayerCard";
 import { PlayerJoinNotification } from "../components/multiplayer/PlayerJoinNotification";
+import { PlayersJoinedPanel } from "../components/multiplayer/PlayersJoinedPanel";
 import { QueueList } from "../components/multiplayer/QueueList";
 import { ScoreBoard } from "../components/multiplayer/ScoreBoard";
 import { SignalLights } from "../components/multiplayer/SignalLights";
@@ -152,6 +153,11 @@ export function GamePage() {
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/60">Host Gateway</p>
           <p className="mt-2 text-sm text-white/75">Waiting for host-generated hardware alerts.</p>
         </TechPanel>
+      )}
+
+      {/* Players Joined Panel - visible to host */}
+      {room.isHost && (
+        <PlayersJoinedPanel players={room.players} hostUid={room.room?.hostUid ?? null} />
       )}
 
       <QueueList players={room.players} activePlayerUid={room.room?.activePlayerUid ?? null} hostUid={room.room?.hostUid ?? null} />
