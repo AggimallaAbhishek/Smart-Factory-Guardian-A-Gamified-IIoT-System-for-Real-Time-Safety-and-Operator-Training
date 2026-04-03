@@ -308,6 +308,16 @@ export class BridgeServer {
         return;
       }
 
+      case "START_GAME": {
+        this.startGame();
+        return;
+      }
+
+      case "STOP_GAME": {
+        this.stopGame();
+        return;
+      }
+
       case "PING": {
         this.sendStatus(ws, {
           status: "ready",
@@ -543,6 +553,46 @@ export class BridgeServer {
         sourceType: this.source.type,
         alertType 
       });
+    }
+  }
+
+  private startGame() {
+    if (!this.source) {
+      this.logger.warn("Cannot start game - no source connected");
+      return;
+    }
+
+    // Send START_GAME command to Arduino if it's a serial source
+    if (this.source.type === "serial" && this.source.sendCommand) {
+      const success = this.source.sendCommand("START_GAME");
+      
+      if (success) {
+        this.logger.info("Game start command sent to Arduino");
+      } else {
+        this.logger.error("Failed to send game start command to Arduino");
+      }
+    } else {
+      this.logger.info("Game started (mock mode - no hardware command needed)");
+    }
+  }
+
+  private stopGame() {
+    if (!this.source) {
+      this.logger.warn("Cannot stop game - no source connected");
+      return;
+    }
+
+    // Send STOP_GAME command to Arduino if it's a serial source
+    if (this.source.type === "serial" && this.source.sendCommand) {
+      const success = this.source.sendCommand("STOP_GAME");
+      
+      if (success) {
+        this.logger.info("Game stop command sent to Arduino");
+      } else {
+        this.logger.error("Failed to send game stop command to Arduino");
+      }
+    } else {
+      this.logger.info("Game stopped (mock mode - no hardware command needed)");
     }
   }
 

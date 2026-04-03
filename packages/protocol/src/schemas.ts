@@ -50,12 +50,26 @@ export const triggerAlertCommandSchema = z.object({
     .strict()
 });
 
+export const startGameCommandSchema = z.object({
+  type: z.literal("START_GAME"),
+  token: z.string().min(8),
+  payload: z.object({}).strict().optional()
+});
+
+export const stopGameCommandSchema = z.object({
+  type: z.literal("STOP_GAME"),
+  token: z.string().min(8),
+  payload: z.object({}).strict().optional()
+});
+
 export const clientCommandSchema = z.discriminatedUnion("type", [
   connectSourceCommandSchema,
   startSessionCommandSchema,
   stopSessionCommandSchema,
   pingCommandSchema,
-  triggerAlertCommandSchema
+  triggerAlertCommandSchema,
+  startGameCommandSchema,
+  stopGameCommandSchema
 ]);
 
 export const bridgeStatusEventSchema = z.object({

@@ -50,6 +50,8 @@ export interface HardwareStatus {
 export interface HardwareController {
   stop: () => void;
   triggerAlert: (alertType: AlertType) => void;
+  startGame: () => void;
+  stopGame: () => void;
 }
 
 export interface HardwareCallbacks {
@@ -244,6 +246,36 @@ export function connectBridge(config: BridgeConnectConfig, callbacks: HardwareCa
       });
 
       logger.info("Triggered Arduino alert", { alertType });
+    },
+
+    startGame() {
+      if (closed || ws.readyState !== WebSocket.OPEN) {
+        logger.warn("Cannot start game - bridge not connected");
+        return;
+      }
+
+      sendBridgeCommand(ws, {
+        type: "START_GAME",
+        token: parsed.token,
+        payload: {}
+      });
+
+      logger.info("Started Arduino game");
+    },
+
+    stopGame() {
+      if (closed || ws.readyState !== WebSocket.OPEN) {
+        logger.warn("Cannot stop game - bridge not connected");
+        return;
+      }
+
+      sendBridgeCommand(ws, {
+        type: "STOP_GAME", 
+        token: parsed.token,
+        payload: {}
+      });
+
+      logger.info("Stopped Arduino game");
     }
   };
 }
@@ -282,6 +314,24 @@ export function startMock(config: MockConfig, callbacks: HardwareCallbacks): Har
 
       logger.debug("Mock hardware triggered alert", { alertType });
       callbacks.onAlert(alertType, Date.now());
+    },
+
+    startGame() {
+      logger.info("Mock hardware game started");
+      callbacks.onStatus({
+        connected: true,
+        mode: "mock",
+        message: "Mock hardware game started - alerts enabled"
+      });
+    },
+
+    stopGame() {
+      logger.info("Mock hardware game stopped");
+      callbacks.onStatus({
+        connected: true,
+        mode: "mock", 
+        message: "Mock hardware game stopped - alerts disabled"
+      });
     }
   };
 }

@@ -12,6 +12,8 @@ interface HardwarePanelProps {
 
 export interface HardwarePanelRef {
   triggerAlert: (alertType: AlertType) => void;
+  startGame: () => void;
+  stopGame: () => void;
 }
 
 export const HardwarePanel = forwardRef<HardwarePanelRef, HardwarePanelProps>(
@@ -31,6 +33,22 @@ export const HardwarePanel = forwardRef<HardwarePanelRef, HardwarePanelProps>(
         controllerRef.current.triggerAlert(alertType);
       } else {
         logger.warn("Cannot trigger alert - no hardware controller active", { alertType });
+      }
+    },
+    startGame: () => {
+      if (controllerRef.current) {
+        controllerRef.current.startGame();
+        logger.info("Hardware game started via panel");
+      } else {
+        logger.warn("Cannot start game - no hardware controller active");
+      }
+    },
+    stopGame: () => {
+      if (controllerRef.current) {
+        controllerRef.current.stopGame();
+        logger.info("Hardware game stopped via panel");
+      } else {
+        logger.warn("Cannot stop game - no hardware controller active");
       }
     }
   }), []);

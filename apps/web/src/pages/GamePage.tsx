@@ -64,6 +64,21 @@ export function GamePage() {
     return "maintenance";
   };
 
+  // Game state management - start/stop hardware game based on room status
+  useEffect(() => {
+    if (!room.isHost) {
+      return; // Only host controls hardware
+    }
+
+    if (roomRunning) {
+      logger.info("Starting hardware game");
+      hardwarePanelRef.current?.startGame();
+    } else {
+      logger.info("Stopping hardware game");
+      hardwarePanelRef.current?.stopGame();
+    }
+  }, [roomRunning, room.isHost]);
+
   // Game-driven alert system with 2-second intervals for active players only
   useEffect(() => {
     if (!roomRunning || !room.isActivePlayer || !room.isHost) {

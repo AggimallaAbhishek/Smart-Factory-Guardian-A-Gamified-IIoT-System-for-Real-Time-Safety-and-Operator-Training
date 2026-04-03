@@ -11,6 +11,7 @@ String currentAlert = "";
 int currentLED = -1;
 unsigned long alertStartTime = 0;
 unsigned long alertDuration = 6000; // 6 seconds alert duration
+bool gameStarted = false; // Track if game has started
 
 void setup() {
   Serial.begin(9600);
@@ -25,8 +26,8 @@ void setup() {
   digitalWrite(tempLED, LOW);
   digitalWrite(maintLED, LOW);
 
-  Serial.println("Factory Guardian Hardware Ready - Waiting for commands");
-  BT.println("Factory Guardian Hardware Ready - Waiting for commands");
+  Serial.println("Factory Guardian Hardware Ready - Waiting for game to start");
+  BT.println("Factory Guardian Hardware Ready - Waiting for game to start");
 }
 
 void loop() {
@@ -59,22 +60,46 @@ void loop() {
 void processCommand(String command) {
   command.toUpperCase();
   
-  if (command.startsWith("ALERT:")) {
-    // Command format: ALERT:gas or ALERT:temperature or ALERT:maintenance
-    String alertType = command.substring(6);
-    startAlert(alertType);
+  if (command == "START_GAME") {
+    // Start the game - enable alert processing
+    gameStarted = true;
+    clearAlert(); // Clear any existing alerts
+    Serial.println("GAME_STARTED:ready");
+    BT.println("GAME_STARTED:ready");
+  }
+  else if (command == "STOP_GAME") {
+    // Stop the game - disable alert processing
+    gameStarted = false;
+    clearAlert(); // Clear any current alerts
+    Serial.println("GAME_STOPPED:ready");
+    BT.println("GAME_STOPPED:ready");
+  }
+  else if (command.startsWith("ALERT:")) {
+    // Only process alerts if game has started
+    if (gameStarted) {
+      // Command format: ALERT:gas or ALERT:temperature or ALERT:maintenance
+      String alertType = command.substring(6);
+      startAlert(alertType);
+    } else {
+      Serial.println("ERROR:game_not_started");
+      BT.println("ERROR:game_not_started");
+    }
   }
   else if (command == "CLEAR" || command == "STOP") {
-    // Clear current alert
+    // Clear current alert (allowed even if game not started)
     clearAlert();
   }
   else if (command == "STATUS") {
     // Report current status
-    Serial.println("STATUS:ready,alert=" + currentAlert);
+    String gameStatus = gameStarted ? "started" : "waiting";
+    Serial.println("STATUS:" + gameStatus + ",alert=" + currentAlert);
+    BT.println("STATUS:" + gameStatus + ",alert=" + currentAlert);
   }
   else if (command.startsWith("PING")) {
     // Respond to ping
-    Serial.println("PONG:ready");
+    String gameStatus = gameStarted ? "started" : "waiting";
+    Serial.println("PONG:" + gameStatus);
+    BT.println("PONG:" + gameStatus);
   }
 }
 
