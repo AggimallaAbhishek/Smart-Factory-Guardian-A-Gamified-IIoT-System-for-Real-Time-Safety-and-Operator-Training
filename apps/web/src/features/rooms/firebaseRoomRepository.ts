@@ -95,6 +95,49 @@ function arePlayersEqual(left: RoomPlayerDoc, right: RoomPlayerDoc) {
 export class FirebaseRoomRepository implements RoomRepository {
   constructor(private readonly db: Firestore) {}
 
+  private async runTransactionWithRetry<T>(
+    updateFunction: (transaction: Transaction) => Promise<T>,
+    context: string,
+    maxRetries: number = 2
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await runTransaction(this.db, updateFunction);
+      } catch (error: any) {
+        lastError = error;
+        
+        // Don't retry on certain errors
+        if (error?.code === 'permission-denied' || error?.code === 'unauthenticated') {
+          logger.error(`Firebase transaction failed with auth error (${context})`, {
+            error: String(error),
+            code: error?.code,
+            attempt
+          });
+          throw error;
+        }
+        
+        // Log and retry on other errors
+        if (attempt < maxRetries) {
+          logger.warn(`Firebase transaction failed, retrying (${context})`, {
+            error: String(error),
+            code: error?.code,
+            attempt,
+            maxRetries
+          });
+          await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+        }
+      }
+    }
+    
+    logger.error(`Firebase transaction failed after all retries (${context})`, {
+      error: String(lastError),
+      maxRetries
+    });
+    throw lastError;
+  }
+
   subscribeRoom(roomId: string, callback: (room: RoomDoc | null) => void) {
     const roomRef = doc(this.db, "rooms", roomId);
 
@@ -211,7 +254,7 @@ export class FirebaseRoomRepository implements RoomRepository {
   }
 
   async joinRoom(roomId: string, user: AuthUser) {
-    await runTransaction(this.db, async (transaction) => {
+    await this.runTransactionWithRetry(async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
       const previousPlayers = clonePlayers(record.players);
       if (record.room.status === "ended") {
@@ -243,7 +286,7 @@ export class FirebaseRoomRepository implements RoomRepository {
       record.room.playerQueue = this.rebuildQueue(record.players, record.room.hostUid);
 
       this.writeRoomRecord(transaction, roomId, record, previousPlayers);
-    });
+    }, `joinRoom:${roomId}:${user.uid}`);
 
     logger.debug("Player joined Firebase room", {
       roomId,
@@ -470,7 +513,7 @@ export class FirebaseRoomRepository implements RoomRepository {
   }
 
   async submitResponse(roomId: string, actorUid: string, responseType: AlertType, timestampMs: number) {
-    await runTransaction(this.db, async (transaction) => {
+    await this.runTransactionWithRetry(async (transaction) => {
       const record = await this.readRoomRecord(transaction, roomId);
       const previousPlayers = clonePlayers(record.players);
       const responded = submitResponseState(
@@ -488,7 +531,7 @@ export class FirebaseRoomRepository implements RoomRepository {
 
       this.writeEvents(transaction, roomId, responded.events);
       this.writeRoomRecord(transaction, roomId, record, previousPlayers);
-    });
+    }, `submitResponse:${roomId}:${actorUid}`);
   }
 
   async heartbeat(roomId: string, actorUid: string, timestampMs: number) {

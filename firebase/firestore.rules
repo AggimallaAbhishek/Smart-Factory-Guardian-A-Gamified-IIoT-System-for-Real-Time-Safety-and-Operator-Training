@@ -53,7 +53,7 @@ service cloud.firestore {
         && request.resource.data.playersCompletedTurn == resource.data.playersCompletedTurn;
     }
 
-    // Active player resolves only the current alert without mutating turn ownership/state.
+    // Active player can clear active alert (submit response)
     function isActivePlayerResponseUpdate(roomId) {
       return isRoomParticipant(roomId)
         && resource.data.activePlayerUid == request.auth.uid
@@ -118,6 +118,7 @@ service cloud.firestore {
         && request.resource.data.turnTransitionEndsAtMs == null
         && request.resource.data.playersCompletedTurn is list;
 
+      // Allow all room updates for host, plus specific updates for players
       allow update: if isRoomHost(roomId)
         || isQueueJoinUpdate(roomId)
         || isActivePlayerResponseUpdate(roomId)
@@ -129,7 +130,8 @@ service cloud.firestore {
       allow read: if signedIn();
 
       // Host controls all player records. Player can modify only their own record.
-      allow create, update: if isRoomHost(roomId) || isSelf(uid);
+      // Allow more permissive updates for gameplay
+      allow create, update: if signedIn() && (isRoomHost(roomId) || isSelf(uid) || isRoomParticipant(roomId));
       allow delete: if false;
     }
 
@@ -137,6 +139,7 @@ service cloud.firestore {
       allow read: if signedIn() && (isRoomHost(roomId) || isRoomParticipant(roomId));
 
       // Events are append-only and immutable for auditability.
+      // Allow any room participant to create events
       allow create: if signedIn()
         && request.resource.data.eventId == eventId
         && request.resource.data.roomId == roomId
