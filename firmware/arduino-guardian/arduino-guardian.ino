@@ -10,8 +10,11 @@ int score = 0;
 String currentAlert = "";
 int currentLED = -1;
 unsigned long alertStartTime = 0;
-unsigned long alertDuration = 6000; // 6 seconds alert duration
+unsigned long alertDuration = 2000; // 2 seconds alert duration (matching web game)
 bool gameStarted = false; // Track if game has started
+unsigned long lastAlertTime = 0; // Track when last alert was generated
+unsigned long alertInterval = 2000; // Generate new alert every 2 seconds
+int lastAlertIndex = -1; // Prevent same alert twice in a row
 
 void setup() {
   Serial.begin(9600);
@@ -25,6 +28,9 @@ void setup() {
   digitalWrite(gasLED, LOW);
   digitalWrite(tempLED, LOW);
   digitalWrite(maintLED, LOW);
+  
+  // Initialize random seed
+  randomSeed(analogRead(0));
 
   Serial.println("Factory Guardian Hardware Ready - Waiting for game to start");
   BT.println("Factory Guardian Hardware Ready - Waiting for game to start");
@@ -47,14 +53,50 @@ void loop() {
     processCommand(command);
   }
   
-  // Handle current alert timeout
+  // Auto-generate random alerts when game is started
+  if (gameStarted && (millis() - lastAlertTime >= alertInterval)) {
+    generateRandomAlert();
+    lastAlertTime = millis();
+  }
+  
+  // Handle current alert timeout (turn off LED after duration)
   if (currentAlert != "" && (millis() - alertStartTime > alertDuration)) {
-    // Alert timed out - turn off LED
     clearAlert();
-    Serial.println("ALERT_TIMEOUT:" + currentAlert);
   }
   
   delay(50); // Small delay to prevent excessive CPU usage
+}
+
+void generateRandomAlert() {
+  // Weighted random: Gas 40%, Temperature 40%, Maintenance 20%
+  int roll;
+  int alertIndex;
+  
+  // Prevent same alert twice in a row
+  do {
+    roll = random(10);
+    if (roll < 4) {
+      alertIndex = 0; // GAS
+    } else if (roll < 8) {
+      alertIndex = 1; // TEMPERATURE
+    } else {
+      alertIndex = 2; // MAINTENANCE
+    }
+  } while (alertIndex == lastAlertIndex);
+  
+  lastAlertIndex = alertIndex;
+  
+  switch (alertIndex) {
+    case 0:
+      startAlert("GAS");
+      break;
+    case 1:
+      startAlert("TEMPERATURE");
+      break;
+    case 2:
+      startAlert("MAINTENANCE");
+      break;
+  }
 }
 
 void processCommand(String command) {
@@ -63,6 +105,7 @@ void processCommand(String command) {
   if (command == "START_GAME") {
     // Start the game - enable alert processing
     gameStarted = true;
+    lastAlertTime = millis(); // Reset alert timer
     clearAlert(); // Clear any existing alerts
     Serial.println("GAME_STARTED:ready");
     BT.println("GAME_STARTED:ready");
@@ -75,28 +118,25 @@ void processCommand(String command) {
     BT.println("GAME_STOPPED:ready");
   }
   else if (command.startsWith("ALERT:")) {
-    // Only process alerts if game has started
+    // Manual alert from web game (for synchronized mode)
     if (gameStarted) {
-      // Command format: ALERT:gas or ALERT:temperature or ALERT:maintenance
       String alertType = command.substring(6);
       startAlert(alertType);
+      lastAlertTime = millis(); // Reset auto-generate timer
     } else {
       Serial.println("ERROR:game_not_started");
       BT.println("ERROR:game_not_started");
     }
   }
   else if (command == "CLEAR" || command == "STOP") {
-    // Clear current alert (allowed even if game not started)
     clearAlert();
   }
   else if (command == "STATUS") {
-    // Report current status
     String gameStatus = gameStarted ? "started" : "waiting";
     Serial.println("STATUS:" + gameStatus + ",alert=" + currentAlert);
     BT.println("STATUS:" + gameStatus + ",alert=" + currentAlert);
   }
   else if (command.startsWith("PING")) {
-    // Respond to ping
     String gameStatus = gameStarted ? "started" : "waiting";
     Serial.println("PONG:" + gameStatus);
     BT.println("PONG:" + gameStatus);
@@ -113,17 +153,17 @@ void startAlert(String alertType) {
   if (alertType == "GAS") {
     currentLED = gasLED;
     digitalWrite(gasLED, HIGH);
-    BT.println("🚨 GAS LEAK DETECTED! 🚨");
+    BT.println("GAS LEAK!");
   }
   else if (alertType == "TEMPERATURE") {
     currentLED = tempLED;
     digitalWrite(tempLED, HIGH);
-    BT.println("🌡️ HIGH TEMPERATURE! 🌡️");
+    BT.println("HIGH TEMP!");
   }
   else if (alertType == "MAINTENANCE") {
     currentLED = maintLED;
     digitalWrite(maintLED, HIGH);
-    BT.println("🔧 MAINTENANCE REQUIRED! 🔧");
+    BT.println("MAINTENANCE!");
   }
   
   // Confirm alert started
@@ -132,23 +172,13 @@ void startAlert(String alertType) {
   alertTypeLower.toLowerCase();
   String frameData = "EVT|" + eventId + "|" + alertTypeLower + "|" + String(millis());
   Serial.println(frameData);
-  
-  Serial.println("ALERT_STARTED:" + alertType + ":" + eventId);
 }
 
 void clearAlert() {
-  if (currentAlert != "") {
-    // Turn off current LED
-    if (currentLED != -1) {
-      digitalWrite(currentLED, LOW);
-    }
-    
-    Serial.println("ALERT_CLEARED:" + currentAlert);
-    currentAlert = "";
-    currentLED = -1;
-  }
+  currentAlert = "";
+  currentLED = -1;
   
-  // Make sure all LEDs are off
+  // Turn off all LEDs
   digitalWrite(gasLED, LOW);
   digitalWrite(tempLED, LOW);
   digitalWrite(maintLED, LOW);
