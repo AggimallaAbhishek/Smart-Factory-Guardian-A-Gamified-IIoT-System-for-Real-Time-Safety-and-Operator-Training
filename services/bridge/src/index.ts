@@ -38,6 +38,28 @@ async function main() {
     launchToken: bridge.getToken()
   });
 
+  // Auto-connect Arduino if environment variables are provided
+  const bridgeSource = process.env.BRIDGE_SOURCE;
+  const serialPath = process.env.BRIDGE_SERIAL_PATH;
+  const baudRate = parsePositiveInt(process.env.BRIDGE_SERIAL_BAUD_RATE);
+
+  if (bridgeSource === "serial" && serialPath) {
+    logger.info("Auto-connecting to Arduino", {
+      serialPath,
+      baudRate: baudRate || 9600
+    });
+    
+    try {
+      await bridge.autoConnectSerial(serialPath, baudRate || 9600);
+      logger.info("Arduino auto-connection successful", { serialPath });
+    } catch (error) {
+      logger.error("Arduino auto-connection failed", {
+        serialPath,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
   const shutdown = async () => {
     logger.info("Bridge shutdown signal received");
     await bridge.stop();

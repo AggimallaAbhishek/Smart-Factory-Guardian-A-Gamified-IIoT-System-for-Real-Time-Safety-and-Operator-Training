@@ -166,6 +166,14 @@ export class BridgeServer {
     return this.port;
   }
 
+  async autoConnectSerial(serialPath: string, baudRate: number = DEFAULT_BAUD_RATE) {
+    await this.connectSource({
+      source: "serial",
+      serialPath,
+      baudRate
+    });
+  }
+
   private onConnection(ws: WebSocket, request: IncomingMessage) {
     this.clients.add(ws);
     this.rateLimiters.set(ws, new SlidingWindowRateLimiter(this.commandLimit, this.commandWindowMs));
