@@ -303,6 +303,11 @@ export class BridgeServer {
         return;
       }
 
+      case "TRIGGER_ALERT": {
+        this.triggerAlert(command.payload.alertType);
+        return;
+      }
+
       case "PING": {
         this.sendStatus(ws, {
           status: "ready",
@@ -515,6 +520,30 @@ export class BridgeServer {
     this.logger.info("Session stopped", {
       source: this.sourceType
     });
+  }
+
+  private triggerAlert(alertType: string) {
+    if (!this.source) {
+      this.logger.warn("Cannot trigger alert - no source connected");
+      return;
+    }
+
+    // Send command to Arduino if it's a serial source
+    if (this.source.type === "serial" && this.source.sendCommand) {
+      const command = `ALERT:${alertType.toUpperCase()}`;
+      const success = this.source.sendCommand(command);
+      
+      if (success) {
+        this.logger.info("Alert command sent to Arduino", { alertType });
+      } else {
+        this.logger.error("Failed to send alert command to Arduino", { alertType });
+      }
+    } else {
+      this.logger.warn("Source does not support commands, cannot trigger alert", { 
+        sourceType: this.source.type,
+        alertType 
+      });
+    }
   }
 
   private sendSessionState(ws: WebSocket) {

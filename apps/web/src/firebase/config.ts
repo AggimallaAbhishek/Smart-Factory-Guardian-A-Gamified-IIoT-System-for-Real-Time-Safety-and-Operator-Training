@@ -30,12 +30,4 @@ export const firebaseApp = firebaseConfig ? initializeApp(firebaseConfig) : null
 export const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 export const firestoreDb = firebaseApp ? getFirestore(firebaseApp) : null;
 
-// Configure timeouts and settings for better reliability
-if (firebaseAuth) {
-  // Set auth timeout to 30 seconds
-  firebaseAuth.settings = {
-    appVerificationDisabledForTesting: false
-  };
-}
-
 export const backendMode = import.meta.env.VITE_BACKEND_MODE ?? (isFirebaseConfigured ? "firebase" : "demo");

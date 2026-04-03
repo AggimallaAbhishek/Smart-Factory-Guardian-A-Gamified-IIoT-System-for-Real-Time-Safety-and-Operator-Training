@@ -88,4 +88,10 @@ export class SimulatorSource implements FrameSource {
     const index = Math.floor(this.random() * FALLBACK_SEQUENCE.length);
     return FALLBACK_SEQUENCE[index] ?? "gas";
   }
+
+  sendCommand(command: string): boolean {
+    // Simulator doesn't respond to commands - it generates its own events
+    this.options.logger.debug("Simulator ignoring command", { command });
+    return true;
+  }
 }

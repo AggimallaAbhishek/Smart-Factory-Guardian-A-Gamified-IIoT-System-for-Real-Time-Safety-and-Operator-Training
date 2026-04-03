@@ -49,6 +49,7 @@ export interface HardwareStatus {
 
 export interface HardwareController {
   stop: () => void;
+  triggerAlert: (alertType: AlertType) => void;
 }
 
 export interface HardwareCallbacks {
@@ -226,57 +227,61 @@ export function connectBridge(config: BridgeConnectConfig, callbacks: HardwareCa
         mode: "bridge",
         message: "Bridge stopped"
       });
+    },
+
+    triggerAlert(alertType: AlertType) {
+      if (closed || ws.readyState !== WebSocket.OPEN) {
+        logger.warn("Cannot trigger alert - bridge not connected", { alertType });
+        return;
+      }
+
+      sendBridgeCommand(ws, {
+        type: "TRIGGER_ALERT",
+        token: parsed.token,
+        payload: {
+          alertType
+        }
+      });
+
+      logger.info("Triggered Arduino alert", { alertType });
     }
   };
 }
 
 export function startMock(config: MockConfig, callbacks: HardwareCallbacks): HardwareController {
   const parsed = mockConfigSchema.parse(config);
-  let timerId: number | null = null;
   let stopped = false;
 
   logger.info("Starting mock hardware source", {
-    minIntervalMs: parsed.minIntervalMs,
-    maxIntervalMs: parsed.maxIntervalMs
+    alertDurationMs: parsed.alertDurationMs
   });
-
-  const dispatchNext = () => {
-    if (stopped) {
-      return;
-    }
-
-    timerId = window.setTimeout(() => {
-      const alertType = weightedRandomAlertType();
-      logger.debug("Mock hardware emitted alert", {
-        alertType
-      });
-      callbacks.onAlert(alertType, Date.now());
-      dispatchNext();
-    }, nextTimeoutMs(parsed.minIntervalMs, parsed.maxIntervalMs));
-  };
 
   callbacks.onStatus({
     connected: true,
     mode: "mock",
-    message: "Mock generator running (Arduino-style weighted alerts)"
+    message: "Mock hardware ready (waiting for triggered alerts)"
   });
-
-  dispatchNext();
 
   return {
     stop() {
       stopped = true;
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
-      }
-
       logger.info("Mock hardware source stopped");
 
       callbacks.onStatus({
         connected: false,
         mode: "mock",
-        message: "Mock generator stopped"
+        message: "Mock hardware stopped"
       });
+    },
+
+    triggerAlert(alertType: AlertType) {
+      if (stopped) {
+        logger.warn("Cannot trigger alert - mock hardware stopped", { alertType });
+        return;
+      }
+
+      logger.debug("Mock hardware triggered alert", { alertType });
+      callbacks.onAlert(alertType, Date.now());
     }
   };
 }

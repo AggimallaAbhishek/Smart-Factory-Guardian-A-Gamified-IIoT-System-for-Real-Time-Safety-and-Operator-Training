@@ -7,11 +7,10 @@ int tempLED = 3;
 int maintLED = 4;
 
 int score = 0;
-char correctKey;
-int eventLED;
-unsigned long reactionTime;
-
-int lastEvent = -1;
+String currentAlert = "";
+int currentLED = -1;
+unsigned long alertStartTime = 0;
+unsigned long alertDuration = 6000; // 6 seconds alert duration
 
 void setup() {
   Serial.begin(9600);
@@ -21,139 +20,109 @@ void setup() {
   pinMode(tempLED, OUTPUT);
   pinMode(maintLED, OUTPUT);
 
-  randomSeed(analogRead(0));
-
-  Serial.println("Factory Guardian Hardware Started");
-  BT.println("Factory Guardian Hardware Started");
-}
-
-void loop() {
-  // Clear old input
-  while (BT.available()) {
-    BT.read();
-  }
-  while (Serial.available()) {
-    Serial.read();
-  }
-
+  // Turn off all LEDs initially
   digitalWrite(gasLED, LOW);
   digitalWrite(tempLED, LOW);
   digitalWrite(maintLED, LOW);
 
-  // -------- EVENT SELECTION --------
-  int event;
+  Serial.println("Factory Guardian Hardware Ready - Waiting for commands");
+  BT.println("Factory Guardian Hardware Ready - Waiting for commands");
+}
 
-  // Prevent consecutive same alerts (like Arduino timing)
-  do {
-    event = random(10);
-  } while (
-    (event < 4 && lastEvent == 0) ||
-    (event >= 4 && event < 8 && lastEvent == 1) ||
-    (event >= 8 && lastEvent == 2)
-  );
-
-  String alertType;
-  String eventId = String("EVT") + String(random(1000, 9999));
-
-  if (event < 4) {
-    eventLED = gasLED;
-    correctKey = 'G';
-    alertType = "gas";
-    lastEvent = 0;
-    BT.println("Gas Leak! Press G");
-  }
-  else if (event < 8) {
-    eventLED = tempLED;
-    correctKey = 'T';
-    alertType = "temperature";
-    lastEvent = 1;
-    BT.println("High Temperature! Press T");
-  }
-  else {
-    eventLED = maintLED;
-    correctKey = 'M';
-    alertType = "maintenance";
-    lastEvent = 2;
-    BT.println("Maintenance Required! Press M");
-  }
-
-  digitalWrite(eventLED, HIGH);
-
-  unsigned long startTime = millis();
+void loop() {
+  // Check for incoming commands from Serial or Bluetooth
+  String command = "";
   
-  // Send event to bridge in correct format: EVT|eventId|alertType|deviceTsMs
-  String frameData = "EVT|" + eventId + "|" + alertType + "|" + String(startTime);
+  if (Serial.available()) {
+    command = Serial.readStringUntil('\n');
+    command.trim();
+  } else if (BT.available()) {
+    command = BT.readStringUntil('\n'); 
+    command.trim();
+  }
+  
+  // Process commands
+  if (command.length() > 0) {
+    processCommand(command);
+  }
+  
+  // Handle current alert timeout
+  if (currentAlert != "" && (millis() - alertStartTime > alertDuration)) {
+    // Alert timed out - turn off LED
+    clearAlert();
+    Serial.println("ALERT_TIMEOUT:" + currentAlert);
+  }
+  
+  delay(50); // Small delay to prevent excessive CPU usage
+}
+
+void processCommand(String command) {
+  command.toUpperCase();
+  
+  if (command.startsWith("ALERT:")) {
+    // Command format: ALERT:gas or ALERT:temperature or ALERT:maintenance
+    String alertType = command.substring(6);
+    startAlert(alertType);
+  }
+  else if (command == "CLEAR" || command == "STOP") {
+    // Clear current alert
+    clearAlert();
+  }
+  else if (command == "STATUS") {
+    // Report current status
+    Serial.println("STATUS:ready,alert=" + currentAlert);
+  }
+  else if (command.startsWith("PING")) {
+    // Respond to ping
+    Serial.println("PONG:ready");
+  }
+}
+
+void startAlert(String alertType) {
+  // Clear previous alert first
+  clearAlert();
+  
+  currentAlert = alertType;
+  alertStartTime = millis();
+  
+  if (alertType == "GAS") {
+    currentLED = gasLED;
+    digitalWrite(gasLED, HIGH);
+    BT.println("🚨 GAS LEAK DETECTED! 🚨");
+  }
+  else if (alertType == "TEMPERATURE") {
+    currentLED = tempLED;
+    digitalWrite(tempLED, HIGH);
+    BT.println("🌡️ HIGH TEMPERATURE! 🌡️");
+  }
+  else if (alertType == "MAINTENANCE") {
+    currentLED = maintLED;
+    digitalWrite(maintLED, HIGH);
+    BT.println("🔧 MAINTENANCE REQUIRED! 🔧");
+  }
+  
+  // Confirm alert started
+  String eventId = "EVT" + String(random(1000, 9999));
+  String frameData = "EVT|" + eventId + "|" + alertType.toLowerCase() + "|" + String(millis());
   Serial.println(frameData);
-  BT.println("FRAME: " + frameData);
+  
+  Serial.println("ALERT_STARTED:" + alertType + ":" + eventId);
+}
 
-  bool answered = false;
-
-  // Dynamic reaction time based on score (Arduino timing)
-  unsigned long reactionLimit;
-  if (score < 30) {
-    reactionLimit = 2500; // Easy
-  }
-  else if (score < 60) {
-    reactionLimit = 1500; // Medium
-  }
-  else {
-    reactionLimit = 500;  // Extreme
-  }
-
-  while (millis() - startTime < reactionLimit) {
-    // Check for input from both Serial and Bluetooth
-    char input = '\0';
+void clearAlert() {
+  if (currentAlert != "") {
+    // Turn off current LED
+    if (currentLED != -1) {
+      digitalWrite(currentLED, LOW);
+    }
     
-    if (BT.available()) {
-      input = BT.read();
-    } else if (Serial.available()) {
-      input = Serial.read();
-    }
-
-    if (input != '\0' && input != '\n' && input != '\r' && input != ' ') {
-      input = toupper(input);
-      reactionTime = millis() - startTime;
-
-      if (input == correctKey) {
-        score += 10;
-        BT.println("Correct +10");
-        Serial.println("RESPONSE: Correct +10");
-      } else {
-        score -= 5;
-        BT.println("Wrong -5");
-        Serial.println("RESPONSE: Wrong -5");
-      }
-
-      answered = true;
-      break;
-    }
+    Serial.println("ALERT_CLEARED:" + currentAlert);
+    currentAlert = "";
+    currentLED = -1;
   }
-
-  if (!answered) {
-    score -= 5;
-    reactionTime = reactionLimit;
-    BT.println("Timeout -5");
-    Serial.println("RESPONSE: Timeout -5");
-  }
-
-  digitalWrite(eventLED, LOW);
-
-  BT.print("Score: ");
-  BT.println(score);
-  Serial.print("SCORE: ");
-  Serial.println(score);
-
-  // Dynamic gap between events (Arduino timing)
-  int gap;
-  if (score < 30) {
-    gap = random(1200, 2500); // Easy mode gap
-  }
-  else if (score < 60) {
-    gap = random(900, 1800);  // Medium mode gap
-  }
-  else {
-    gap = random(600, 1200);  // Extreme mode gap
-  }
-
-  delay(gap);
+  
+  // Make sure all LEDs are off
+  digitalWrite(gasLED, LOW);
+  digitalWrite(tempLED, LOW);
+  digitalWrite(maintLED, LOW);
 }

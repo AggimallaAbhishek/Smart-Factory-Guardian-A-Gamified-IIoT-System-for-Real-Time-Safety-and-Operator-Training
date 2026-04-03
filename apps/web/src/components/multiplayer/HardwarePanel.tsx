@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { AlertType } from "@guardian/protocol";
 import { connectBridge, startMock, type HardwareController, type HardwareStatus } from "../../features/hardware/hardwareService";
 import { logger } from "../../lib/logger";
@@ -10,7 +10,12 @@ interface HardwarePanelProps {
   onAlert: (alertType: AlertType, source: "bridge" | "mock", timestampMs: number) => Promise<void>;
 }
 
-export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
+export interface HardwarePanelRef {
+  triggerAlert: (alertType: AlertType) => void;
+}
+
+export const HardwarePanel = forwardRef<HardwarePanelRef, HardwarePanelProps>(
+  ({ roomRunning, onAlert }, ref) => {
   const [status, setStatus] = useState<HardwareStatus>({
     connected: false,
     message: "Hardware source idle",
@@ -19,30 +24,30 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
 
   const [mode, setMode] = useState<"mock" | "arduino">("mock");
   const controllerRef = useRef<HardwareController | null>(null);
-  const autoStartedRef = useRef(false);
 
-  // Auto-start mock source when room starts running
-  useEffect(() => {
-    if (roomRunning && !controllerRef.current && !autoStartedRef.current) {
-      autoStartedRef.current = true;
-      logger.info("Auto-starting mock signal source on room start");
-      startHardwareInternal();
+  useImperativeHandle(ref, () => ({
+    triggerAlert: (alertType: AlertType) => {
+      if (controllerRef.current) {
+        controllerRef.current.triggerAlert(alertType);
+      } else {
+        logger.warn("Cannot trigger alert - no hardware controller active", { alertType });
+      }
     }
-  }, [roomRunning]);
+  }), []);
 
+  // Start hardware when room starts, stop when it ends
   useEffect(() => {
     if (roomRunning) {
-      return;
+      startHardwareInternal();
+    } else {
+      controllerRef.current?.stop();
+      controllerRef.current = null;
+      setStatus((previous) => ({
+        ...previous,
+        connected: false,
+        message: "Source paused while room is not running"
+      }));
     }
-
-    controllerRef.current?.stop();
-    controllerRef.current = null;
-    autoStartedRef.current = false;
-    setStatus((previous) => ({
-      ...previous,
-      connected: false,
-      message: "Source paused while room is not running"
-    }));
   }, [roomRunning]);
 
   useEffect(() => {
@@ -174,4 +179,6 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
       )}
     </TechPanel>
   );
-}
+});
+
+HardwarePanel.displayName = "HardwarePanel";

@@ -102,4 +102,25 @@ export class SerialSource implements FrameSource {
       });
     });
   }
+
+  sendCommand(command: string) {
+    if (!this.port || !this.port.isOpen) {
+      this.options.logger.warn("Cannot send command, serial port not open", { command });
+      return false;
+    }
+
+    const commandWithNewline = command + '\n';
+    this.port.write(commandWithNewline, (error) => {
+      if (error) {
+        this.options.logger.error("Failed to send command to Arduino", {
+          command,
+          error: error.message
+        });
+      } else {
+        this.options.logger.debug("Command sent to Arduino", { command });
+      }
+    });
+
+    return true;
+  }
 }

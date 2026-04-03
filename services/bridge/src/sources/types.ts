@@ -4,6 +4,7 @@ export interface FrameSource {
   readonly type: SourceType;
   start: () => Promise<void>;
   stop: () => Promise<void>;
+  sendCommand?: (command: string) => boolean;
 }
 
 export interface FrameSourceCallbacks {

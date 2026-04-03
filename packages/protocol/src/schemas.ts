@@ -40,11 +40,22 @@ export const pingCommandSchema = z.object({
   payload: z.object({}).strict().optional()
 });
 
+export const triggerAlertCommandSchema = z.object({
+  type: z.literal("TRIGGER_ALERT"),
+  token: z.string().min(8),
+  payload: z
+    .object({
+      alertType: alertTypeSchema
+    })
+    .strict()
+});
+
 export const clientCommandSchema = z.discriminatedUnion("type", [
   connectSourceCommandSchema,
   startSessionCommandSchema,
   stopSessionCommandSchema,
-  pingCommandSchema
+  pingCommandSchema,
+  triggerAlertCommandSchema
 ]);
 
 export const bridgeStatusEventSchema = z.object({
