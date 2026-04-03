@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AlertType } from "@guardian/protocol";
-import { startMock, type HardwareController, type HardwareStatus } from "../../features/hardware/hardwareService";
+import { connectBridge, startMock, type HardwareController, type HardwareStatus } from "../../features/hardware/hardwareService";
 import { logger } from "../../lib/logger";
 import { TechActionButton } from "../ui/TechActionButton";
 import { TechPanel } from "../ui/TechPanel";
@@ -13,10 +13,11 @@ interface HardwarePanelProps {
 export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
   const [status, setStatus] = useState<HardwareStatus>({
     connected: false,
-    message: "Mock signal source idle",
+    message: "Hardware source idle",
     mode: "mock"
   });
 
+  const [mode, setMode] = useState<"mock" | "arduino">("mock");
   const controllerRef = useRef<HardwareController | null>(null);
   const autoStartedRef = useRef(false);
 
@@ -64,26 +65,45 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
       controllerRef.current.stop();
     }
     
-    // Arduino-matching intervals: 1200-2500ms gap between alerts
-    logger.info("Starting mock signal source (Arduino-style)", {
-      minIntervalMs: 1_200,
-      maxIntervalMs: 2_500
-    });
-
-    controllerRef.current = startMock(
-      {
+    if (mode === "arduino") {
+      logger.info("Starting Arduino bridge connection");
+      controllerRef.current = connectBridge(
+        {
+          token: "arduino-bridge",
+          port: 8787,
+          source: "serial"
+        },
+        {
+          onAlert: (alertType, timestampMs) => {
+            void onAlert(alertType, "bridge", timestampMs);
+          },
+          onStatus: (nextStatus) => {
+            setStatus(nextStatus);
+          }
+        }
+      );
+    } else {
+      // Arduino-matching intervals: 1200-2500ms gap between alerts
+      logger.info("Starting mock signal source (Arduino-style)", {
         minIntervalMs: 1_200,
         maxIntervalMs: 2_500
-      },
-      {
-        onAlert: (alertType, timestampMs) => {
-          void onAlert(alertType, "mock", timestampMs);
+      });
+
+      controllerRef.current = startMock(
+        {
+          minIntervalMs: 1_200,
+          maxIntervalMs: 2_500
         },
-        onStatus: (nextStatus) => {
-          setStatus(nextStatus);
+        {
+          onAlert: (alertType, timestampMs) => {
+            void onAlert(alertType, "mock", timestampMs);
+          },
+          onStatus: (nextStatus) => {
+            setStatus(nextStatus);
+          }
         }
-      }
-    );
+      );
+    }
   };
 
   const startHardware = () => {
@@ -104,8 +124,33 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
         {status.message}
       </p>
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/50">
-        Arduino-style: Gas 40%, Temp 40%, Maint 20%. Interval 1.2-2.5s.
+        {mode === "arduino" ? "Real Arduino Hardware (via Bridge Service)" : "Arduino-style: Gas 40%, Temp 40%, Maint 20%. Interval 1.2-2.5s."}
       </p>
+
+      <div className="mt-3 flex gap-2">
+        <button
+          onClick={() => setMode("mock")}
+          className={`px-3 py-1 text-xs font-mono rounded ${
+            mode === "mock" 
+              ? "bg-tech-blue text-white" 
+              : "bg-white/10 text-white/60 hover:text-white"
+          }`}
+          disabled={running}
+        >
+          Mock
+        </button>
+        <button
+          onClick={() => setMode("arduino")}
+          className={`px-3 py-1 text-xs font-mono rounded ${
+            mode === "arduino" 
+              ? "bg-tech-blue text-white" 
+              : "bg-white/10 text-white/60 hover:text-white"
+          }`}
+          disabled={running}
+        >
+          Arduino
+        </button>
+      </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
         <TechActionButton
@@ -114,13 +159,19 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
           onClick={startHardware}
           data-testid="hardware-start"
         >
-          Start Mock Source
+          Start {mode === "arduino" ? "Arduino" : "Mock Source"}
         </TechActionButton>
 
         <TechActionButton tone="neutral" disabled={!running} onClick={stopHardware} data-testid="hardware-stop">
           Stop Source
         </TechActionButton>
       </div>
+
+      {status.lastError && (
+        <div className="mt-3 p-2 bg-red-900/20 border border-red-500/30 rounded">
+          <p className="text-xs text-red-300">{status.lastError}</p>
+        </div>
+      )}
     </TechPanel>
   );
 }
