@@ -9,6 +9,11 @@ interface QueueListProps {
   hostUid: string | null;
 }
 
+function shortenUid(uid: string) {
+  if (uid.length <= 10) return uid;
+  return uid.slice(0, 5) + "..." + uid.slice(-3);
+}
+
 export function QueueList({ players, activePlayerUid, hostUid }: QueueListProps) {
   return (
     <TechPanel data-testid="queue-list">
@@ -38,9 +43,13 @@ export function QueueList({ players, activePlayerUid, hostUid }: QueueListProps)
                 <p className="text-sm font-semibold uppercase tracking-[0.08em] text-white">
                   {index + 1}. {player.displayName}
                 </p>
-                <p className="font-mono text-xs text-white/60">
+                <p className="font-mono text-[10px] tracking-[0.1em] text-tech-blue/60" title={player.uid}>
+                  ID: {shortenUid(player.uid)}
+                </p>
+                <p className="font-mono text-[10px] text-white/50">
                   {player.uid === hostUid ? "Host" : "Player"}
-                  {player.isConnected ? " | Connected" : " | Disconnected"}
+                  {player.isConnected ? " • Connected" : " • Disconnected"}
+                  {" • Score: " + player.totalScore}
                 </p>
               </div>
 

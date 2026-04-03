@@ -15,6 +15,11 @@ function formatMs(value: number) {
   return (value / 1000).toFixed(3) + " sec";
 }
 
+function shortenUid(uid: string) {
+  if (uid.length <= 12) return uid;
+  return uid.slice(0, 6) + "..." + uid.slice(-4);
+}
+
 export function PlayerCard({ player, isActivePlayer }: PlayerCardProps) {
   if (!player) {
     return (
@@ -36,7 +41,10 @@ export function PlayerCard({ player, isActivePlayer }: PlayerCardProps) {
     >
       <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/55">Player</p>
       <p className="mt-1 text-lg font-semibold uppercase tracking-[0.08em] text-white">{player.displayName}</p>
-      <p className="text-sm text-white/70">{isActivePlayer ? "Your turn" : "Waiting in queue"}</p>
+      <p className="font-mono text-[10px] tracking-[0.1em] text-tech-blue/70" title={player.uid}>
+        ID: {shortenUid(player.uid)}
+      </p>
+      <p className="mt-1 text-sm text-white/70">{isActivePlayer ? "Your turn — respond to alerts!" : "Waiting in queue"}</p>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
         <div className="tech-cut-reverse border border-white/10 bg-base-700/70 px-2 py-2">

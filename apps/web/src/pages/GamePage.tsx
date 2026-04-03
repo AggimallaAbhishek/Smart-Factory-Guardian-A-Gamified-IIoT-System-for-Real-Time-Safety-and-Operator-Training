@@ -4,8 +4,10 @@ import { ALERT_TYPES, type AlertType } from "@guardian/protocol";
 import { AlertButton } from "../components/multiplayer/AlertButton";
 import { HardwarePanel } from "../components/multiplayer/HardwarePanel";
 import { PlayerCard } from "../components/multiplayer/PlayerCard";
+import { PlayerJoinNotification } from "../components/multiplayer/PlayerJoinNotification";
 import { QueueList } from "../components/multiplayer/QueueList";
 import { ScoreBoard } from "../components/multiplayer/ScoreBoard";
+import { SignalLights } from "../components/multiplayer/SignalLights";
 import { Timer } from "../components/multiplayer/Timer";
 import { TechActionButton } from "../components/ui/TechActionButton";
 import { TechPanel } from "../components/ui/TechPanel";
@@ -79,6 +81,9 @@ export function GamePage() {
       transition={{ duration: 0.2 }}
       className="grid gap-3"
     >
+      {/* Player join notifications for host */}
+      <PlayerJoinNotification players={room.players} isHost={room.isHost} />
+
       <div className="grid gap-3 xl:grid-cols-[1.2fr,1fr]">
         <ScoreBoard
           score={room.myPlayer?.totalScore ?? 0}
@@ -87,6 +92,14 @@ export function GamePage() {
         />
         <Timer turnEndsAtMs={room.room?.turnEndsAtMs ?? null} />
       </div>
+
+      {/* Signal Lights Panel */}
+      <TechPanel className="border-white/20 bg-base-900/80">
+        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/55 text-center">
+          Signal Lights
+        </p>
+        <SignalLights activeAlert={activeAlert?.type ?? null} />
+      </TechPanel>
 
       <div className="grid gap-3 xl:grid-cols-[1.25fr,1fr]">
         <TechPanel className={alertToneClass(activeAlert?.type ?? null)} cut="normal">
