@@ -18,6 +18,16 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
   });
 
   const controllerRef = useRef<HardwareController | null>(null);
+  const autoStartedRef = useRef(false);
+
+  // Auto-start mock source when room starts running
+  useEffect(() => {
+    if (roomRunning && !controllerRef.current && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      logger.info("Auto-starting mock signal source on room start");
+      startHardwareInternal();
+    }
+  }, [roomRunning]);
 
   useEffect(() => {
     if (roomRunning) {
@@ -26,6 +36,7 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
 
     controllerRef.current?.stop();
     controllerRef.current = null;
+    autoStartedRef.current = false;
     setStatus((previous) => ({
       ...previous,
       connected: false,
@@ -48,17 +59,21 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
     controllerRef.current = null;
   };
 
-  const startHardware = () => {
-    stopHardware();
-    logger.info("Starting mock signal source", {
-      minIntervalMs: 2_000,
-      maxIntervalMs: 3_000
+  const startHardwareInternal = () => {
+    if (controllerRef.current) {
+      controllerRef.current.stop();
+    }
+    
+    // Arduino-matching intervals: 1200-2500ms gap between alerts
+    logger.info("Starting mock signal source (Arduino-style)", {
+      minIntervalMs: 1_200,
+      maxIntervalMs: 2_500
     });
 
     controllerRef.current = startMock(
       {
-        minIntervalMs: 2_000,
-        maxIntervalMs: 3_000
+        minIntervalMs: 1_200,
+        maxIntervalMs: 2_500
       },
       {
         onAlert: (alertType, timestampMs) => {
@@ -69,6 +84,11 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
         }
       }
     );
+  };
+
+  const startHardware = () => {
+    stopHardware();
+    startHardwareInternal();
   };
 
   return (
@@ -84,7 +104,7 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
         {status.message}
       </p>
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/50">
-        Mock cadence: random every 2-3 sec. Alert lasts 6 sec before auto-miss.
+        Arduino-style: Gas 40%, Temp 40%, Maint 20%. Interval 1.2-2.5s.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">

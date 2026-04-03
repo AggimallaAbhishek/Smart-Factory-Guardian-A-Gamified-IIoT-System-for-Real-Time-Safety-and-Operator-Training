@@ -6,27 +6,36 @@ interface SignalLightsProps {
   activeAlert: AlertType | null;
 }
 
-const LIGHTS: { type: AlertType; label: string; color: string; glowColor: string; bgColor: string }[] = [
+/**
+ * Arduino LED Pin Mapping:
+ * - Pin 2: Gas LED (Red) - Key 'G'
+ * - Pin 3: Temperature LED (Orange) - Key 'T'
+ * - Pin 4: Maintenance LED (Blue) - Key 'M'
+ */
+const LIGHTS: { type: AlertType; label: string; key: string; pin: number; color: string; glowColor: string }[] = [
   {
     type: "gas",
     label: "GAS",
-    color: "bg-tech-red",
-    glowColor: "shadow-[0_0_30px_rgba(255,77,77,0.8),0_0_60px_rgba(255,77,77,0.4)]",
-    bgColor: "bg-tech-red/20"
+    key: "G",
+    pin: 2,
+    color: "bg-red-500",
+    glowColor: "shadow-[0_0_30px_rgba(239,68,68,0.8),0_0_60px_rgba(239,68,68,0.4)]"
   },
   {
     type: "temperature",
     label: "TEMP",
-    color: "bg-tech-orange",
-    glowColor: "shadow-[0_0_30px_rgba(255,170,51,0.8),0_0_60px_rgba(255,170,51,0.4)]",
-    bgColor: "bg-tech-orange/20"
+    key: "T",
+    pin: 3,
+    color: "bg-orange-500",
+    glowColor: "shadow-[0_0_30px_rgba(249,115,22,0.8),0_0_60px_rgba(249,115,22,0.4)]"
   },
   {
     type: "maintenance",
     label: "MAINT",
-    color: "bg-tech-blue",
-    glowColor: "shadow-[0_0_30px_rgba(0,240,255,0.8),0_0_60px_rgba(0,240,255,0.4)]",
-    bgColor: "bg-tech-blue/20"
+    key: "M",
+    pin: 4,
+    color: "bg-blue-500",
+    glowColor: "shadow-[0_0_30px_rgba(59,130,246,0.8),0_0_60px_rgba(59,130,246,0.4)]"
   }
 ];
 
@@ -48,15 +57,15 @@ export function SignalLights({ activeAlert }: SignalLightsProps) {
               animate={
                 isActive
                   ? {
-                      scale: [1, 1.1, 1],
-                      opacity: [1, 0.8, 1]
+                      scale: [1, 1.15, 1],
+                      opacity: [1, 0.7, 1]
                     }
                   : { scale: 1, opacity: 1 }
               }
               transition={
                 isActive
                   ? {
-                      duration: 0.5,
+                      duration: 0.4,
                       repeat: Infinity,
                       ease: "easeInOut"
                     }
@@ -67,28 +76,35 @@ export function SignalLights({ activeAlert }: SignalLightsProps) {
               {isActive && (
                 <motion.div
                   className={clsx("absolute inset-2 rounded-full", light.color)}
-                  animate={{ opacity: [0.6, 1, 0.6] }}
-                  transition={{ duration: 0.5, repeat: Infinity, ease: "easeInOut" }}
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 0.4, repeat: Infinity, ease: "easeInOut" }}
                 />
               )}
 
-              {/* Center dot */}
+              {/* Center dot / key indicator */}
               <div
                 className={clsx(
-                  "absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full",
-                  isActive ? "bg-white/90" : "bg-white/20"
+                  "absolute left-1/2 top-1/2 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full font-mono text-xs font-bold",
+                  isActive ? "bg-white/90 text-base-900" : "bg-white/20 text-white/50"
                 )}
-              />
+              >
+                {light.key}
+              </div>
             </motion.div>
 
-            <span
-              className={clsx(
-                "font-mono text-[10px] font-semibold uppercase tracking-[0.15em]",
-                isActive ? "text-white" : "text-white/40"
-              )}
-            >
-              {light.label}
-            </span>
+            <div className="text-center">
+              <span
+                className={clsx(
+                  "block font-mono text-[10px] font-semibold uppercase tracking-[0.15em]",
+                  isActive ? "text-white" : "text-white/40"
+                )}
+              >
+                {light.label}
+              </span>
+              <span className="font-mono text-[8px] text-white/30">
+                PIN {light.pin}
+              </span>
+            </div>
           </div>
         );
       })}

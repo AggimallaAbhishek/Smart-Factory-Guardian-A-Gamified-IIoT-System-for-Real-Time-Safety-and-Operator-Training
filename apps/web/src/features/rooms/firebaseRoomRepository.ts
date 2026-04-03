@@ -3,8 +3,6 @@ import {
   collection,
   doc,
   onSnapshot,
-  orderBy,
-  query,
   runTransaction,
   type Firestore,
   type Transaction
@@ -128,14 +126,10 @@ export class FirebaseRoomRepository implements RoomRepository {
   }
 
   subscribePlayers(roomId: string, callback: (players: RoomPlayerDoc[]) => void) {
-    const playersQuery = query(
-      collection(this.db, "rooms", roomId, "players"),
-      orderBy("queueOrder", "asc"),
-      orderBy("joinedAtMs", "asc")
-    );
+    const playersRef = collection(this.db, "rooms", roomId, "players");
 
     return onSnapshot(
-      playersQuery,
+      playersRef,
       (snapshot) => {
         const players: RoomPlayerDoc[] = [];
 

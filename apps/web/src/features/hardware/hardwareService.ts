@@ -11,11 +11,19 @@ import { bridgeConfigSchema } from "../rooms/schemas";
 
 const START_SESSION_DURATION_SEC = 24 * 60 * 60;
 
+/**
+ * Arduino-matching timing config:
+ * - Easy (score < 30): 2500ms reaction, 1200-1600ms gap
+ * - Medium (score 30-59): 1500ms reaction, 900-1300ms gap
+ * - Extreme (score >= 60): 500ms reaction, 600-900ms gap
+ *
+ * For demo mode, we use fixed intervals that feel responsive.
+ */
 const mockConfigSchema = z
   .object({
-    minIntervalMs: z.number().int().min(1_000).max(5_000).default(2_000),
-    maxIntervalMs: z.number().int().min(1_500).max(8_000).default(3_000),
-    alertDurationMs: z.number().int().min(1_000).max(30_000).default(6_000)
+    minIntervalMs: z.number().int().min(500).max(5_000).default(1_200),
+    maxIntervalMs: z.number().int().min(800).max(8_000).default(2_500),
+    alertDurationMs: z.number().int().min(500).max(30_000).default(6_000)
   })
   .strict();
 
@@ -48,9 +56,37 @@ export interface HardwareCallbacks {
   onStatus: (status: HardwareStatus) => void;
 }
 
-function randomAlertType() {
-  const index = Math.floor(Math.random() * ALERT_TYPES.length);
-  return ALERT_TYPES[index] ?? "gas";
+/**
+ * Arduino-matching weighted random selection:
+ * - Gas: 40% (events 0-3 out of 10)
+ * - Temperature: 40% (events 4-7 out of 10)
+ * - Maintenance: 20% (events 8-9 out of 10)
+ *
+ * Also prevents consecutive same alerts (Arduino behavior).
+ */
+let lastAlertType: AlertType | null = null;
+
+function weightedRandomAlertType(): AlertType {
+  let alertType: AlertType;
+  let attempts = 0;
+
+  do {
+    const roll = Math.floor(Math.random() * 10);
+
+    if (roll < 4) {
+      alertType = "gas";
+    } else if (roll < 8) {
+      alertType = "temperature";
+    } else {
+      alertType = "maintenance";
+    }
+
+    attempts++;
+    // Prevent same alert twice in a row (Arduino behavior), but limit retries
+  } while (alertType === lastAlertType && attempts < 5);
+
+  lastAlertType = alertType;
+  return alertType;
 }
 
 function nextTimeoutMs(minMs: number, maxMs: number) {
@@ -79,8 +115,8 @@ export function connectBridge(config: BridgeConnectConfig, callbacks: HardwareCa
       payload: {
         source: parsed.source,
         serialPath: parsed.serialPath,
-        simulatorIntervalMinMs: 2_000,
-        simulatorIntervalMaxMs: 3_000
+        simulatorIntervalMinMs: 1_200,
+        simulatorIntervalMaxMs: 2_500
       }
     });
 
@@ -210,7 +246,7 @@ export function startMock(config: MockConfig, callbacks: HardwareCallbacks): Har
     }
 
     timerId = window.setTimeout(() => {
-      const alertType = randomAlertType();
+      const alertType = weightedRandomAlertType();
       logger.debug("Mock hardware emitted alert", {
         alertType
       });
@@ -222,7 +258,7 @@ export function startMock(config: MockConfig, callbacks: HardwareCallbacks): Har
   callbacks.onStatus({
     connected: true,
     mode: "mock",
-    message: "Mock generator running"
+    message: "Mock generator running (Arduino-style weighted alerts)"
   });
 
   dispatchNext();
