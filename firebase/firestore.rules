@@ -47,7 +47,10 @@ service cloud.firestore {
         && request.resource.data.activeAlert == resource.data.activeAlert
         && request.resource.data.lastHostHeartbeatMs == resource.data.lastHostHeartbeatMs
         && request.resource.data.createdAtMs == resource.data.createdAtMs
-        && request.resource.data.endedAtMs == resource.data.endedAtMs;
+        && request.resource.data.endedAtMs == resource.data.endedAtMs
+        && request.resource.data.nextPlayerUid == resource.data.nextPlayerUid
+        && request.resource.data.turnTransitionEndsAtMs == resource.data.turnTransitionEndsAtMs
+        && request.resource.data.playersCompletedTurn == resource.data.playersCompletedTurn;
     }
 
     // Active player resolves only the current alert without mutating turn ownership/state.
@@ -66,7 +69,10 @@ service cloud.firestore {
         && request.resource.data.lastHostHeartbeatMs == resource.data.lastHostHeartbeatMs
         && request.resource.data.createdAtMs == resource.data.createdAtMs
         && request.resource.data.endedAtMs == resource.data.endedAtMs
-        && request.resource.data.playerQueue == resource.data.playerQueue;
+        && request.resource.data.playerQueue == resource.data.playerQueue
+        && request.resource.data.nextPlayerUid == resource.data.nextPlayerUid
+        && request.resource.data.turnTransitionEndsAtMs == resource.data.turnTransitionEndsAtMs
+        && request.resource.data.playersCompletedTurn == resource.data.playersCompletedTurn;
     }
 
     // Host claim transfer path (stale-host recovery) keeps gameplay fields unchanged.
@@ -83,7 +89,10 @@ service cloud.firestore {
         && request.resource.data.activeAlert == resource.data.activeAlert
         && request.resource.data.createdAtMs == resource.data.createdAtMs
         && request.resource.data.endedAtMs == resource.data.endedAtMs
-        && request.resource.data.playerQueue == resource.data.playerQueue;
+        && request.resource.data.playerQueue == resource.data.playerQueue
+        && request.resource.data.nextPlayerUid == resource.data.nextPlayerUid
+        && request.resource.data.turnTransitionEndsAtMs == resource.data.turnTransitionEndsAtMs
+        && request.resource.data.playersCompletedTurn == resource.data.playersCompletedTurn;
     }
 
     match /users/{uid} {
@@ -104,7 +113,10 @@ service cloud.firestore {
         && request.resource.data.turnNumber == 0
         && request.resource.data.activeAlert == null
         && request.resource.data.endedAtMs == null
-        && request.resource.data.playerQueue is list;
+        && request.resource.data.playerQueue is list
+        && request.resource.data.nextPlayerUid == null
+        && request.resource.data.turnTransitionEndsAtMs == null
+        && request.resource.data.playersCompletedTurn is list;
 
       allow update: if isRoomHost(roomId)
         || isQueueJoinUpdate(roomId)

@@ -290,7 +290,10 @@ export function submitResponseState(
   logger.debug("Alert response accepted", {
     actorUid,
     outcome,
-    responseTimeMs
+    responseTimeMs,
+    previousScore: actor.totalScore,
+    newScore: players[actorUid].totalScore,
+    scoreChange: players[actorUid].totalScore - actor.totalScore
   });
 
   return {

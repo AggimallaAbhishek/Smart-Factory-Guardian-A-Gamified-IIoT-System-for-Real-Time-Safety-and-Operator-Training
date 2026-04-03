@@ -8,7 +8,7 @@ import {
   type Transaction
 } from "firebase/firestore";
 import { logger } from "../../lib/logger";
-import { TURN_DURATION_SEC } from "./constants";
+import { MAX_PLAYERS, TURN_DURATION_SEC } from "./constants";
 import { createEntityId, createRoomCode } from "./ids";
 import type { RoomRepository } from "./repositoryTypes";
 import {
@@ -220,6 +220,14 @@ export class FirebaseRoomRepository implements RoomRepository {
 
       const nowMs = Date.now();
       const existing = record.players[user.uid];
+
+      if (!existing) {
+        // New player joining - check max player limit
+        const currentPlayerCount = Object.keys(record.players).length;
+        if (currentPlayerCount >= MAX_PLAYERS) {
+          throw new Error(`Room is full. Maximum ${MAX_PLAYERS} players allowed.`);
+        }
+      }
 
       if (existing) {
         record.players[user.uid] = {

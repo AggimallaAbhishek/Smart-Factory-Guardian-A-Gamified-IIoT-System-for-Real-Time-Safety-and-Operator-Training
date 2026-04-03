@@ -9,7 +9,7 @@ import {
   type EngineEvent
 } from "./roomEngine";
 import { createPlayerDocument, chooseNextTurnOwner, sortPlayersByQueue, startTurn } from "./roomLogic";
-import { ROOM_STORAGE_KEY, TURN_DURATION_SEC } from "./constants";
+import { MAX_PLAYERS, ROOM_STORAGE_KEY, TURN_DURATION_SEC } from "./constants";
 import type { RoomRepository } from "./repositoryTypes";
 import type { AuthUser, HardwareSource, RoomDoc, RoomEventDoc, RoomPlayerDoc } from "./types";
 
@@ -167,6 +167,15 @@ export class DemoRoomRepository implements RoomRepository {
       }
 
       const existing = record.players[user.uid];
+      
+      if (!existing) {
+        // New player joining - check max player limit
+        const currentPlayerCount = Object.keys(record.players).length;
+        if (currentPlayerCount >= MAX_PLAYERS) {
+          throw new Error(`Room is full. Maximum ${MAX_PLAYERS} players allowed.`);
+        }
+      }
+
       if (existing) {
         record.players[user.uid] = {
           ...existing,
