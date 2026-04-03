@@ -394,7 +394,7 @@ export class DemoRoomRepository implements RoomRepository {
     const state = readState();
     const record = state.rooms[roomId];
     if (!record) {
-      throw new Error("Room was not found.");
+      throw new Error("Room not found. In demo mode, rooms are only visible in the browser where they were created.");
     }
 
     mutator(record);
