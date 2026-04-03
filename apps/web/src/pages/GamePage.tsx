@@ -81,7 +81,12 @@ export function GamePage() {
 
   // Game-driven alert system with 2-second intervals for active players only
   useEffect(() => {
-    if (!roomRunning || !room.isActivePlayer || !room.isHost) {
+    if (!roomRunning || !room.isHost) {
+      return; // Only host generates alerts (but can also be active player)
+    }
+
+    // Check if there's an active player (could be host or any other player)
+    if (!room.room?.activePlayerUid) {
       return;
     }
 
@@ -105,7 +110,7 @@ export function GamePage() {
       clearInterval(interval);
       logger.info("Stopped synchronized alert generation");
     };
-  }, [roomRunning, room.isActivePlayer, room.isHost, room]);
+  }, [roomRunning, room.isHost, room.room?.activePlayerUid, room]);
 
   const statusText = useMemo(() => {
     if (!room.room) {
@@ -214,8 +219,8 @@ export function GamePage() {
         </div>
       ) : (
         <TechPanel>
-          <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/60">Host Gateway</p>
-          <p className="mt-2 text-sm text-white/75">Waiting for host-generated hardware alerts.</p>
+          <p className="font-mono text-xs uppercase tracking-[0.18em] text-white/60">Player View</p>
+          <p className="mt-2 text-sm text-white/75">Game alerts are controlled by the host.</p>
         </TechPanel>
       )}
 

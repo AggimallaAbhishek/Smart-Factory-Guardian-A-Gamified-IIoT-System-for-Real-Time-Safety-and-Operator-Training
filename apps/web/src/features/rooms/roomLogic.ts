@@ -23,9 +23,8 @@ export function createPlayerDocument(uid: string, displayName: string, queueOrde
 }
 
 export function buildQueueParticipants(players: RoomPlayerDoc[], hostUid?: string): QueueParticipant[] {
-  // Exclude host from the queue - host only manages the game, doesn't play
-  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid) : players;
-  return eligiblePlayers.map((player) => ({
+  // Include all players including host in the game queue
+  return players.map((player) => ({
     uid: player.uid,
     queueOrder: player.queueOrder,
     isConnected: player.isConnected
@@ -108,8 +107,8 @@ export function createAlertPayload(
 }
 
 export function computeLeaderboardEntries(players: RoomPlayerDoc[], hostUid?: string): LeaderboardEntry[] {
-  // Exclude host from leaderboard - they don't play
-  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid) : players;
+  // Include all players including host in leaderboard
+  const eligiblePlayers = players;
   
   const candidates: LeaderboardCandidate[] = eligiblePlayers.map((player) => ({
     uid: player.uid,
@@ -134,8 +133,8 @@ export function computeLeaderboardEntries(players: RoomPlayerDoc[], hostUid?: st
 }
 
 export function sortPlayersByQueue(players: RoomPlayerDoc[], hostUid?: string): RoomPlayerDoc[] {
-  // Exclude host from queue sorting - host stays separate
-  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid) : players;
+  // Include all players including host in queue sorting
+  const eligiblePlayers = players;
   const queue = sortQueueParticipants(buildQueueParticipants(eligiblePlayers));
   return queue
     .map((participant) => eligiblePlayers.find((player) => player.uid === participant.uid))
@@ -143,8 +142,8 @@ export function sortPlayersByQueue(players: RoomPlayerDoc[], hostUid?: string): 
 }
 
 export function findEarliestConnectedPlayer(players: RoomPlayerDoc[], hostUid?: string) {
-  // Exclude host when finding next player
-  const connected = players.filter((player) => player.isConnected && player.uid !== hostUid);
+  // Include all connected players including host when finding next player
+  const connected = players.filter((player) => player.isConnected);
   if (connected.length === 0) {
     return null;
   }
@@ -159,6 +158,6 @@ export function findEarliestConnectedPlayer(players: RoomPlayerDoc[], hostUid?: 
 }
 
 export function hasAllPlayersCompletedTurn(players: RoomPlayerDoc[], completedPlayerUids: string[], hostUid?: string): boolean {
-  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid && p.isConnected) : players.filter((p) => p.isConnected);
+  const eligiblePlayers = players.filter((p) => p.isConnected);
   return eligiblePlayers.every(player => completedPlayerUids.includes(player.uid));
 }

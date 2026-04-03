@@ -128,7 +128,9 @@ void startAlert(String alertType) {
   
   // Confirm alert started
   String eventId = "EVT" + String(random(1000, 9999));
-  String frameData = "EVT|" + eventId + "|" + alertType.toLowerCase() + "|" + String(millis());
+  String alertTypeLower = alertType;
+  alertTypeLower.toLowerCase();
+  String frameData = "EVT|" + eventId + "|" + alertTypeLower + "|" + String(millis());
   Serial.println(frameData);
   
   Serial.println("ALERT_STARTED:" + alertType + ":" + eventId);
