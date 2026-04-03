@@ -21,16 +21,18 @@ export function createPlayerDocument(uid: string, displayName: string, queueOrde
   };
 }
 
-export function buildQueueParticipants(players: RoomPlayerDoc[]): QueueParticipant[] {
-  return players.map((player) => ({
+export function buildQueueParticipants(players: RoomPlayerDoc[], hostUid?: string): QueueParticipant[] {
+  // Exclude host from the queue - host only manages the game, doesn't play
+  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid) : players;
+  return eligiblePlayers.map((player) => ({
     uid: player.uid,
     queueOrder: player.queueOrder,
     isConnected: player.isConnected
   }));
 }
 
-export function chooseNextTurnOwner(players: RoomPlayerDoc[], currentActiveUid: string | null) {
-  return pickNextActivePlayer(buildQueueParticipants(players), currentActiveUid);
+export function chooseNextTurnOwner(players: RoomPlayerDoc[], currentActiveUid: string | null, hostUid?: string) {
+  return pickNextActivePlayer(buildQueueParticipants(players, hostUid), currentActiveUid);
 }
 
 export function applyAlertOutcome(
@@ -85,8 +87,11 @@ export function createAlertPayload(
   };
 }
 
-export function computeLeaderboardEntries(players: RoomPlayerDoc[]): LeaderboardEntry[] {
-  const candidates: LeaderboardCandidate[] = players.map((player) => ({
+export function computeLeaderboardEntries(players: RoomPlayerDoc[], hostUid?: string): LeaderboardEntry[] {
+  // Exclude host from leaderboard - they don't play
+  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid) : players;
+  
+  const candidates: LeaderboardCandidate[] = eligiblePlayers.map((player) => ({
     uid: player.uid,
     displayName: player.displayName,
     totalScore: player.totalScore,
@@ -95,7 +100,7 @@ export function computeLeaderboardEntries(players: RoomPlayerDoc[]): Leaderboard
   }));
 
   return computeLeaderboard(candidates).map((candidate, index) => {
-    const player = players.find((entry) => entry.uid === candidate.uid)!;
+    const player = eligiblePlayers.find((entry) => entry.uid === candidate.uid)!;
     return {
       uid: candidate.uid,
       displayName: candidate.displayName,
@@ -108,15 +113,18 @@ export function computeLeaderboardEntries(players: RoomPlayerDoc[]): Leaderboard
   });
 }
 
-export function sortPlayersByQueue(players: RoomPlayerDoc[]): RoomPlayerDoc[] {
-  const queue = sortQueueParticipants(buildQueueParticipants(players));
+export function sortPlayersByQueue(players: RoomPlayerDoc[], hostUid?: string): RoomPlayerDoc[] {
+  // Exclude host from queue sorting - host stays separate
+  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid) : players;
+  const queue = sortQueueParticipants(buildQueueParticipants(eligiblePlayers));
   return queue
-    .map((participant) => players.find((player) => player.uid === participant.uid))
+    .map((participant) => eligiblePlayers.find((player) => player.uid === participant.uid))
     .filter((player): player is RoomPlayerDoc => Boolean(player));
 }
 
-export function findEarliestConnectedPlayer(players: RoomPlayerDoc[]) {
-  const connected = players.filter((player) => player.isConnected);
+export function findEarliestConnectedPlayer(players: RoomPlayerDoc[], hostUid?: string) {
+  // Exclude host when finding next player
+  const connected = players.filter((player) => player.isConnected && player.uid !== hostUid);
   if (connected.length === 0) {
     return null;
   }

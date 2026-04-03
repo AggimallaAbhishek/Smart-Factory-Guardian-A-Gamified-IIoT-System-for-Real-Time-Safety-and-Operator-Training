@@ -47,7 +47,8 @@ export function advanceTurnState(
     });
   }
 
-  const nextUid = chooseNextTurnOwner(Object.values(players), room.activePlayerUid);
+  // Host doesn't play - exclude from queue when choosing next player
+  const nextUid = chooseNextTurnOwner(Object.values(players), room.activePlayerUid, room.hostUid);
   if (!nextUid) {
     room = {
       ...room,

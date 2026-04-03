@@ -270,7 +270,8 @@ export function RoomLayout() {
     return players.find((player) => player.uid === auth.user?.uid) ?? null;
   }, [auth.user, players]);
 
-  const leaderboard = useMemo(() => computeLeaderboardEntries(players), [players]);
+  // Exclude host from leaderboard - they don't play
+  const leaderboard = useMemo(() => computeLeaderboardEntries(players, room?.hostUid), [players, room?.hostUid]);
   const isHost = Boolean(auth.user && room && room.hostUid === auth.user.uid);
   const isActivePlayer = Boolean(auth.user && room && room.activePlayerUid === auth.user.uid);
 

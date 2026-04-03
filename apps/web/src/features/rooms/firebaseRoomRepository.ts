@@ -228,7 +228,7 @@ export class FirebaseRoomRepository implements RoomRepository {
         record.players[user.uid] = createPlayerDocument(user.uid, user.displayName, maxQueueOrder + 1, nowMs);
       }
 
-      record.room.playerQueue = this.rebuildQueue(record.players);
+      record.room.playerQueue = this.rebuildQueue(record.players, record.room.hostUid);
 
       this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
@@ -277,7 +277,7 @@ export class FirebaseRoomRepository implements RoomRepository {
         }
       }
 
-      record.room.playerQueue = this.rebuildQueue(record.players);
+      record.room.playerQueue = this.rebuildQueue(record.players, record.room.hostUid);
       this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }
@@ -290,9 +290,10 @@ export class FirebaseRoomRepository implements RoomRepository {
         throw new Error("Only host can start this room.");
       }
 
-      const nextUid = chooseNextTurnOwner(Object.values(record.players), null);
+      // Host doesn't play - only joined players are in the queue
+      const nextUid = chooseNextTurnOwner(Object.values(record.players), null, record.room.hostUid);
       if (!nextUid) {
-        throw new Error("Cannot start room without connected players.");
+        throw new Error("Cannot start room without connected players. At least one player must join.");
       }
 
       const nowMs = Date.now();
@@ -530,7 +531,7 @@ export class FirebaseRoomRepository implements RoomRepository {
     const roomRef = doc(this.db, "rooms", roomId);
     transaction.set(roomRef, {
       ...record.room,
-      playerQueue: this.rebuildQueue(record.players)
+      playerQueue: this.rebuildQueue(record.players, record.room.hostUid)
     });
 
     for (const [uid, player] of Object.entries(record.players)) {
@@ -560,7 +561,7 @@ export class FirebaseRoomRepository implements RoomRepository {
     }
   }
 
-  private rebuildQueue(players: Record<string, RoomPlayerDoc>) {
-    return sortPlayersByQueue(Object.values(players)).map((player) => player.uid);
+  private rebuildQueue(players: Record<string, RoomPlayerDoc>, hostUid?: string) {
+    return sortPlayersByQueue(Object.values(players), hostUid).map((player) => player.uid);
   }
 }
