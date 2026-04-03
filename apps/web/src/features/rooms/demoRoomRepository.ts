@@ -61,17 +61,25 @@ export class DemoRoomRepository implements RoomRepository {
   private readonly roomListeners = new Map<string, Set<(room: RoomDoc | null) => void>>();
   private readonly playerListeners = new Map<string, Set<(players: RoomPlayerDoc[]) => void>>();
   private readonly channel = new BroadcastChannel(CHANNEL_NAME);
+  private readonly storageHandler: (event: StorageEvent) => void;
 
   constructor() {
     this.channel.onmessage = () => {
       this.emitAll();
     };
 
-    window.addEventListener("storage", (event) => {
+    this.storageHandler = (event: StorageEvent) => {
       if (event.key === ROOM_STORAGE_KEY) {
         this.emitAll();
       }
-    });
+    };
+
+    window.addEventListener("storage", this.storageHandler);
+  }
+
+  dispose() {
+    window.removeEventListener("storage", this.storageHandler);
+    this.channel.close();
   }
 
   subscribeRoom(roomId: string, callback: (room: RoomDoc | null) => void) {

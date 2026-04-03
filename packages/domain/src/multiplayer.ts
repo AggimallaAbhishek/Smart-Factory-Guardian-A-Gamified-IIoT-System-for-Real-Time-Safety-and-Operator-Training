@@ -30,7 +30,7 @@ export function sortQueueParticipants(participants: QueueParticipant[]): QueuePa
   return [...participants].sort((left, right) => left.queueOrder - right.queueOrder);
 }
 
-export function pickNextActivePlayer(participants: QueueParticipant[], currentActiveUid: string | null) {
+export function pickNextActivePlayer(participants: QueueParticipant[], currentActiveUid: string | null): string | null {
   const ordered = sortQueueParticipants(participants).filter((participant) => participant.isConnected);
   if (ordered.length === 0) {
     return null;

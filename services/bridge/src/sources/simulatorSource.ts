@@ -1,5 +1,6 @@
 import { buildFirmwareFrame, type AlertType } from "@guardian/protocol";
 import type { Logger } from "../logger.js";
+import { toError } from "../utils.js";
 import type { FrameSource, FrameSourceCallbacks } from "./types.js";
 
 export interface SimulatorSourceOptions extends FrameSourceCallbacks {
@@ -87,12 +88,4 @@ export class SimulatorSource implements FrameSource {
     const index = Math.floor(this.random() * FALLBACK_SEQUENCE.length);
     return FALLBACK_SEQUENCE[index] ?? "gas";
   }
-}
-
-function toError(error: unknown): Error {
-  if (error instanceof Error) {
-    return error;
-  }
-
-  return new Error("Unknown simulator source error");
 }

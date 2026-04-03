@@ -1,7 +1,8 @@
 import { z } from "zod";
+import { ALERT_TYPES, SOURCE_TYPES } from "./types.js";
 
-const alertTypeSchema = z.enum(["gas", "temperature", "maintenance"]);
-const sourceTypeSchema = z.enum(["serial", "simulator"]);
+const alertTypeSchema = z.enum(ALERT_TYPES);
+const sourceTypeSchema = z.enum(SOURCE_TYPES);
 
 export const connectSourceCommandSchema = z.object({
   type: z.literal("CONNECT_SOURCE"),

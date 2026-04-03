@@ -21,7 +21,11 @@ export function loadSessionHistory(): PlayerSession[] {
 }
 
 export function persistSessionHistory(sessions: PlayerSession[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, sessions }));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, sessions }));
+  } catch (error) {
+    console.warn("Failed to persist session history", error);
+  }
 }
 
 export function appendSession(session: PlayerSession, maxItems = 50) {

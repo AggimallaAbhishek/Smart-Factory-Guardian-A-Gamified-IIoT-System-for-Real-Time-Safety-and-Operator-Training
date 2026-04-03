@@ -34,7 +34,7 @@ export function toAlertEvent(params: {
   receivedTsMs: number;
   source: SourceType;
 }) {
-  return alertEventSchema.parse({
+  const result = alertEventSchema.safeParse({
     type: "ALERT",
     payload: {
       eventId: params.eventId,
@@ -44,4 +44,10 @@ export function toAlertEvent(params: {
       source: params.source
     }
   });
+
+  if (!result.success) {
+    throw new Error(`Invalid alert event parameters: ${result.error.message}`);
+  }
+
+  return result.data;
 }

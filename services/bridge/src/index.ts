@@ -12,16 +12,22 @@ function parseOrigins(raw: string | undefined) {
     .filter((entry) => entry.length > 0);
 }
 
+function parsePositiveInt(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 async function main() {
   const bridge = new BridgeServer({
     host: process.env.BRIDGE_HOST,
-    port: process.env.BRIDGE_PORT ? Number(process.env.BRIDGE_PORT) : undefined,
+    port: parsePositiveInt(process.env.BRIDGE_PORT),
     token: process.env.BRIDGE_TOKEN,
     allowedOrigins: parseOrigins(process.env.BRIDGE_ALLOW_ORIGINS),
-    commandLimit: process.env.BRIDGE_COMMAND_LIMIT ? Number(process.env.BRIDGE_COMMAND_LIMIT) : undefined,
-    commandWindowMs: process.env.BRIDGE_COMMAND_WINDOW_MS
-      ? Number(process.env.BRIDGE_COMMAND_WINDOW_MS)
-      : undefined,
+    commandLimit: parsePositiveInt(process.env.BRIDGE_COMMAND_LIMIT),
+    commandWindowMs: parsePositiveInt(process.env.BRIDGE_COMMAND_WINDOW_MS),
     logger
   });
 
@@ -42,9 +48,10 @@ async function main() {
   process.on("SIGTERM", shutdown);
 }
 
-main().catch((error: Error) => {
+main().catch((error: unknown) => {
+  const errorMessage = error instanceof Error ? error.message : "Unknown error";
   logger.error("Bridge failed to start", {
-    message: error.message
+    message: errorMessage
   });
   process.exit(1);
 });

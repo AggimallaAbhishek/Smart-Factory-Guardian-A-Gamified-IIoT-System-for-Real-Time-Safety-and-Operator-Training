@@ -14,6 +14,7 @@ import { SlidingWindowRateLimiter } from "./rateLimiter.js";
 import { SerialSource } from "./sources/serialSource.js";
 import { SimulatorSource } from "./sources/simulatorSource.js";
 import type { FrameSource } from "./sources/types.js";
+import { toError } from "./utils.js";
 
 interface SessionState {
   status: "idle" | "running" | "stopped";
@@ -272,7 +273,15 @@ export class BridgeServer {
 
     switch (command.type) {
       case "CONNECT_SOURCE": {
-        await this.connectSource(command.payload);
+        try {
+          await this.connectSource(command.payload);
+        } catch (error) {
+          this.logger.error("Failed to connect source", {
+            message: toError(error).message,
+            source: command.payload.source
+          });
+          this.sendError(ws, "SOURCE_CONNECT_FAILED", `Failed to connect ${command.payload.source} source.`);
+        }
         return;
       }
 
@@ -292,6 +301,7 @@ export class BridgeServer {
           source: this.sourceType ?? undefined,
           message: "pong"
         });
+        return;
       }
     }
   }
@@ -595,12 +605,4 @@ export class BridgeServer {
       }
     }
   }
-}
-
-function toError(error: unknown): Error {
-  if (error instanceof Error) {
-    return error;
-  }
-
-  return new Error("Unknown bridge error");
 }

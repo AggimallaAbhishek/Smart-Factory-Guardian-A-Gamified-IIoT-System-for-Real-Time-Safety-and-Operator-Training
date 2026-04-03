@@ -12,6 +12,8 @@ export interface SerialSourceOptions extends FrameSourceCallbacks {
 export class SerialSource implements FrameSource {
   readonly type = "serial" as const;
   private port: SerialPort | null = null;
+  private errorHandler: ((error: Error) => void) | null = null;
+  private parser: ReadlineParser | null = null;
 
   constructor(private readonly options: SerialSourceOptions) {}
 
@@ -38,15 +40,17 @@ export class SerialSource implements FrameSource {
       });
     });
 
-    this.port.on("error", (error) => {
+    this.errorHandler = (error: Error) => {
       this.options.logger.error("Serial source error", {
         message: error.message
       });
       this.options.onError(error);
-    });
+    };
 
-    const parser = this.port.pipe(new ReadlineParser({ delimiter: "\n" }));
-    parser.on("data", (line: string) => {
+    this.port.on("error", this.errorHandler);
+
+    this.parser = this.port.pipe(new ReadlineParser({ delimiter: "\n" }));
+    this.parser.on("data", (line: string) => {
       const normalized = line.trim();
       if (!normalized) {
         return;
@@ -71,6 +75,17 @@ export class SerialSource implements FrameSource {
 
     const port = this.port;
     this.port = null;
+
+    // Remove event listeners to prevent memory leaks
+    if (this.errorHandler) {
+      port.removeListener("error", this.errorHandler);
+      this.errorHandler = null;
+    }
+
+    if (this.parser) {
+      this.parser.removeAllListeners("data");
+      this.parser = null;
+    }
 
     if (!port.isOpen) {
       return;
