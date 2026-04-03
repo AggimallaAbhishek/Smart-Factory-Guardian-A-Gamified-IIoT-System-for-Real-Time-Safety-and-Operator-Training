@@ -6,12 +6,10 @@ int gasLED = 2;
 int tempLED = 3;
 int maintLED = 4;
 
-int score = 0;
 String currentAlert = "";
 int currentLED = -1;
 unsigned long alertStartTime = 0;
-unsigned long alertDuration = 2000; // 2 seconds alert duration (matching web game)
-bool gameStarted = false; // Track if game has started
+unsigned long alertDuration = 2000; // 2 seconds alert duration
 unsigned long lastAlertTime = 0; // Track when last alert was generated
 unsigned long alertInterval = 2000; // Generate new alert every 2 seconds
 int lastAlertIndex = -1; // Prevent same alert twice in a row
@@ -32,8 +30,11 @@ void setup() {
   // Initialize random seed
   randomSeed(analogRead(0));
 
-  Serial.println("Factory Guardian Hardware Ready - Waiting for game to start");
-  BT.println("Factory Guardian Hardware Ready - Waiting for game to start");
+  Serial.println("Factory Guardian Hardware Ready - Lights blinking!");
+  BT.println("Factory Guardian Hardware Ready - Lights blinking!");
+  
+  // Start blinking immediately
+  lastAlertTime = millis();
 }
 
 void loop() {
@@ -53,8 +54,8 @@ void loop() {
     processCommand(command);
   }
   
-  // Auto-generate random alerts when game is started
-  if (gameStarted && (millis() - lastAlertTime >= alertInterval)) {
+  // Auto-generate random alerts every 2 seconds
+  if (millis() - lastAlertTime >= alertInterval) {
     generateRandomAlert();
     lastAlertTime = millis();
   }
@@ -102,44 +103,22 @@ void generateRandomAlert() {
 void processCommand(String command) {
   command.toUpperCase();
   
-  if (command == "START_GAME") {
-    // Start the game - enable alert processing
-    gameStarted = true;
-    lastAlertTime = millis(); // Reset alert timer
-    clearAlert(); // Clear any existing alerts
-    Serial.println("GAME_STARTED:ready");
-    BT.println("GAME_STARTED:ready");
-  }
-  else if (command == "STOP_GAME") {
-    // Stop the game - disable alert processing
-    gameStarted = false;
-    clearAlert(); // Clear any current alerts
-    Serial.println("GAME_STOPPED:ready");
-    BT.println("GAME_STOPPED:ready");
-  }
-  else if (command.startsWith("ALERT:")) {
-    // Manual alert from web game (for synchronized mode)
-    if (gameStarted) {
-      String alertType = command.substring(6);
-      startAlert(alertType);
-      lastAlertTime = millis(); // Reset auto-generate timer
-    } else {
-      Serial.println("ERROR:game_not_started");
-      BT.println("ERROR:game_not_started");
-    }
+  if (command.startsWith("ALERT:")) {
+    // Manual alert from web game
+    String alertType = command.substring(6);
+    startAlert(alertType);
+    lastAlertTime = millis(); // Reset auto-generate timer
   }
   else if (command == "CLEAR" || command == "STOP") {
     clearAlert();
   }
   else if (command == "STATUS") {
-    String gameStatus = gameStarted ? "started" : "waiting";
-    Serial.println("STATUS:" + gameStatus + ",alert=" + currentAlert);
-    BT.println("STATUS:" + gameStatus + ",alert=" + currentAlert);
+    Serial.println("STATUS:running,alert=" + currentAlert);
+    BT.println("STATUS:running,alert=" + currentAlert);
   }
   else if (command.startsWith("PING")) {
-    String gameStatus = gameStarted ? "started" : "waiting";
-    Serial.println("PONG:" + gameStatus);
-    BT.println("PONG:" + gameStatus);
+    Serial.println("PONG:running");
+    BT.println("PONG:running");
   }
 }
 
