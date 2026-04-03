@@ -25,6 +25,10 @@ export interface RoomDoc {
   createdAtMs: number;
   endedAtMs: number | null;
   playerQueue: string[];
+  // Turn transition fields
+  nextPlayerUid: string | null;
+  turnTransitionEndsAtMs: number | null;
+  playersCompletedTurn: string[];
 }
 
 export interface RoomPlayerDoc {

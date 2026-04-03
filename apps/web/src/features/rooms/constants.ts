@@ -12,3 +12,10 @@ export const ROOM_STORAGE_KEY = "guardian.demo.rooms.v1";
  * For demo, we use the easy mode timeout.
  */
 export const ALERT_TIMEOUT_MS = 2_500;
+
+/**
+ * Turn transition timing - countdown between players
+ * Random interval between 10-15 seconds
+ */
+export const TURN_TRANSITION_MIN_SEC = 10;
+export const TURN_TRANSITION_MAX_SEC = 15;

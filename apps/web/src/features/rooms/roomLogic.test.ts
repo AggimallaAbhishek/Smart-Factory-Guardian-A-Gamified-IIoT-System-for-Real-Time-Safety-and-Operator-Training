@@ -22,7 +22,10 @@ function roomFixture(): RoomDoc {
     lastHostHeartbeatMs: 100,
     createdAtMs: 100,
     endedAtMs: null,
-    playerQueue: ["host", "guest"]
+    playerQueue: ["host", "guest"],
+    nextPlayerUid: null,
+    turnTransitionEndsAtMs: null,
+    playersCompletedTurn: []
   };
 }
 

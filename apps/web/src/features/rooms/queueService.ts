@@ -44,3 +44,18 @@ export async function heartbeat(roomId: string, actorUid: string, timestampMs: n
     throw wrapRoomError(error, "Host heartbeat");
   }
 }
+
+export async function completeTurnTransition(roomId: string, actorUid: string) {
+  try {
+    await ensureFirebaseSessionReady("complete_turn_transition");
+    const parsedRoomId = roomCodeSchema.parse(roomId);
+    await getRoomRepository().completeTurnTransition(parsedRoomId, actorUid);
+
+    logger.debug("Turn transition completed via queue service", {
+      roomId: parsedRoomId,
+      actorUid
+    });
+  } catch (error) {
+    throw wrapRoomError(error, "Complete turn transition");
+  }
+}

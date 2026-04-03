@@ -5,7 +5,9 @@ import {
   chooseNextTurnOwner,
   createAlertPayload,
   findEarliestConnectedPlayer,
-  startTurn
+  hasAllPlayersCompletedTurn,
+  startTurn,
+  startTurnTransition
 } from "./roomLogic";
 import type { HardwareSource, RoomDoc, RoomEventType, RoomPlayerDoc } from "./types";
 
@@ -32,6 +34,12 @@ export function advanceTurnState(
   let room = { ...state.room };
 
   const activePlayerUid = room.activePlayerUid;
+  
+  // Mark current player as completed if they had a turn
+  if (activePlayerUid && !room.playersCompletedTurn.includes(activePlayerUid)) {
+    room.playersCompletedTurn = [...room.playersCompletedTurn, activePlayerUid];
+  }
+
   if (room.activeAlert && activePlayerUid && players[activePlayerUid]) {
     players[activePlayerUid] = applyAlertOutcome(players[activePlayerUid], "miss");
     events.push({
@@ -47,6 +55,38 @@ export function advanceTurnState(
     });
   }
 
+  // Check if all players have completed their turn
+  if (hasAllPlayersCompletedTurn(Object.values(players), room.playersCompletedTurn, room.hostUid)) {
+    // All players finished - end the game
+    room = {
+      ...room,
+      status: "ended",
+      endedAtMs: timestampMs,
+      activePlayerUid: null,
+      turnStartedAtMs: null,
+      turnEndsAtMs: null,
+      activeAlert: null,
+      nextPlayerUid: null,
+      turnTransitionEndsAtMs: null
+    };
+
+    events.push({
+      type: "room_ended",
+      actorUid,
+      timestampMs,
+      payload: {
+        reason: "all_players_completed"
+      }
+    });
+
+    logger.info("All players completed their turns, ending game", {
+      actorUid,
+      completedCount: room.playersCompletedTurn.length
+    });
+
+    return { room, players, events };
+  }
+
   // Host doesn't play - exclude from queue when choosing next player
   const nextUid = chooseNextTurnOwner(Object.values(players), room.activePlayerUid, room.hostUid);
   if (!nextUid) {
@@ -55,7 +95,9 @@ export function advanceTurnState(
       activePlayerUid: null,
       turnStartedAtMs: null,
       turnEndsAtMs: null,
-      activeAlert: null
+      activeAlert: null,
+      nextPlayerUid: null,
+      turnTransitionEndsAtMs: null
     };
 
     events.push({
@@ -82,14 +124,8 @@ export function advanceTurnState(
     turnsPlayed: nextPlayer.turnsPlayed + 1
   };
 
-  room = startTurn(
-    {
-      ...room,
-      activeAlert: null
-    },
-    nextUid,
-    timestampMs
-  );
+  // Start turn transition (10-15 sec countdown)
+  room = startTurnTransition(room, nextUid, timestampMs);
 
   events.push({
     type: reason === "disconnect" ? "turn_skipped_disconnected" : "turn_advanced",
@@ -98,15 +134,48 @@ export function advanceTurnState(
     payload: {
       previousUid: activePlayerUid,
       nextUid,
-      reason
+      reason,
+      transitionEndsAtMs: room.turnTransitionEndsAtMs
     }
   });
 
-  logger.debug("Turn advanced", {
+  logger.debug("Turn transition started", {
     actorUid,
     reason,
     previousUid: activePlayerUid,
     nextUid,
+    transitionEndsAtMs: room.turnTransitionEndsAtMs
+  });
+
+  return { room, players, events };
+}
+
+export function completeTurnTransition(state: EngineState, actorUid: string, timestampMs: number) {
+  const events: EngineEvent[] = [];
+  const players = { ...state.players };
+  let room = { ...state.room };
+
+  const nextUid = room.nextPlayerUid;
+  if (!nextUid) {
+    return { room, players, events };
+  }
+
+  // Start actual turn
+  room = startTurn(room, nextUid, timestampMs);
+
+  events.push({
+    type: "turn_started",
+    actorUid,
+    timestampMs,
+    payload: {
+      activePlayerUid: nextUid,
+      turnNumber: room.turnNumber
+    }
+  });
+
+  logger.debug("Turn started after transition", {
+    actorUid,
+    activePlayerUid: nextUid,
     turnNumber: room.turnNumber
   });
 

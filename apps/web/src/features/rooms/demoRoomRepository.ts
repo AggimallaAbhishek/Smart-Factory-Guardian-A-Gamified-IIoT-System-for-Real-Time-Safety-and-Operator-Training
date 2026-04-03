@@ -2,6 +2,7 @@ import type { AlertType } from "@guardian/protocol";
 import { logger } from "../../lib/logger";
 import {
   advanceTurnState,
+  completeTurnTransition as completeTurnTransitionState,
   publishAlertState,
   submitResponseState,
   transferHostIfStaleState,
@@ -138,7 +139,10 @@ export class DemoRoomRepository implements RoomRepository {
         lastHostHeartbeatMs: nowMs,
         createdAtMs: nowMs,
         endedAtMs: null,
-        playerQueue: [user.uid]
+        playerQueue: [user.uid],
+        nextPlayerUid: null,
+        turnTransitionEndsAtMs: null,
+        playersCompletedTurn: []
       },
       players: {
         [user.uid]: hostPlayer
@@ -301,20 +305,33 @@ export class DemoRoomRepository implements RoomRepository {
 
       this.persistEvents(record, roomId, advanced.events);
 
-      if (record.room.activePlayerUid) {
-        this.persistEvents(record, roomId, [
-          {
-            type: "turn_started",
-            actorUid,
-            timestampMs: Date.now(),
-            payload: {
-              activePlayerUid: record.room.activePlayerUid,
-              turnNumber: record.room.turnNumber
-            }
-          }
-        ]);
-      }
+      // Turn transition started - don't immediately start turn
+      // Host will need to call completeTurnTransition after countdown
     }, "advance_turn");
+  }
+
+  async completeTurnTransition(roomId: string, actorUid: string) {
+    this.mutateRoom(roomId, (record) => {
+      if (record.room.hostUid !== actorUid) {
+        throw new Error("Only host can complete turn transition.");
+      }
+
+      if (!record.room.nextPlayerUid || !record.room.turnTransitionEndsAtMs) {
+        // No transition in progress
+        return;
+      }
+
+      const transitioned = completeTurnTransitionState(
+        { room: record.room, players: record.players },
+        actorUid,
+        Date.now()
+      );
+
+      record.room = transitioned.room;
+      record.players = transitioned.players;
+
+      this.persistEvents(record, roomId, transitioned.events);
+    }, "complete_turn_transition");
   }
 
   async publishAlert(roomId: string, actorUid: string, alertType: AlertType, source: HardwareSource, timestampMs: number) {

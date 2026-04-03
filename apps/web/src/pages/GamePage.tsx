@@ -13,6 +13,7 @@ import { Timer } from "../components/multiplayer/Timer";
 import { TechActionButton } from "../components/ui/TechActionButton";
 import { TechPanel } from "../components/ui/TechPanel";
 import { useRoomContext } from "../features/rooms/RoomContext";
+import { TurnTransitionPanel } from "../features/rooms/TurnTransitionPanel";
 
 function alertLabel(alertType: AlertType) {
   if (alertType === "gas") {
@@ -84,6 +85,11 @@ export function GamePage() {
     >
       {/* Player join notifications for host */}
       <PlayerJoinNotification players={room.players} isHost={room.isHost} />
+
+      {/* Turn transition countdown */}
+      {room.room?.turnTransitionEndsAtMs && (
+        <TurnTransitionPanel room={room.room} players={room.players} />
+      )}
 
       <div className="grid gap-3 xl:grid-cols-[1.2fr,1fr]">
         <ScoreBoard

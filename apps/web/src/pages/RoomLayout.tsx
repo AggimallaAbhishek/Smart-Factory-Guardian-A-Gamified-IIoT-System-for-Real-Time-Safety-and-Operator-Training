@@ -5,7 +5,7 @@ import { RoomContext } from "../features/rooms/RoomContext";
 import { publishAlert } from "../features/rooms/alertService";
 import { useAuthContext } from "../features/auth/AuthContext";
 import { logger } from "../lib/logger";
-import { advanceTurn, heartbeat, transferHostIfStale } from "../features/rooms/queueService";
+import { advanceTurn, heartbeat, transferHostIfStale, completeTurnTransition } from "../features/rooms/queueService";
 import { submitResponse } from "../features/rooms/responseService";
 import {
   endRoom,
@@ -40,6 +40,7 @@ export function RoomLayout() {
   const timeoutLockRef = useRef(false);
   const disconnectLockRef = useRef(false);
   const alertTimeoutRef = useRef(false);
+  const transitionLockRef = useRef(false);
 
   useEffect(() => {
     const user = auth.user;
@@ -181,6 +182,50 @@ export function RoomLayout() {
         .finally(() => {
           window.setTimeout(() => {
             timeoutLockRef.current = false;
+          }, 350);
+        });
+    }, 250);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [auth.user, room, roomId]);
+
+  // Host: Auto-complete turn transition after countdown
+  useEffect(() => {
+    const user = auth.user;
+    if (!user || !room || room.status !== "running" || room.hostUid !== user.uid || !room.turnTransitionEndsAtMs) {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      if (transitionLockRef.current) {
+        return;
+      }
+
+      const nowMs = Date.now();
+      if (!room.turnTransitionEndsAtMs || nowMs < room.turnTransitionEndsAtMs) {
+        return;
+      }
+
+      transitionLockRef.current = true;
+      logger.debug("Turn transition countdown completed, starting next turn", {
+        roomId,
+        uid: user.uid,
+        nextPlayerUid: room.nextPlayerUid
+      });
+
+      void completeTurnTransition(roomId, user.uid)
+        .catch((caughtError) => {
+          logger.warn("Turn transition completion failed", {
+            roomId,
+            uid: user.uid,
+            error: String(caughtError)
+          });
+        })
+        .finally(() => {
+          window.setTimeout(() => {
+            transitionLockRef.current = false;
           }, 350);
         });
     }, 250);

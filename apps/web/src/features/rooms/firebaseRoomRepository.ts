@@ -13,6 +13,7 @@ import { createEntityId, createRoomCode } from "./ids";
 import type { RoomRepository } from "./repositoryTypes";
 import {
   advanceTurnState,
+  completeTurnTransition as completeTurnTransitionState,
   publishAlertState,
   submitResponseState,
   transferHostIfStaleState,
@@ -178,7 +179,10 @@ export class FirebaseRoomRepository implements RoomRepository {
             lastHostHeartbeatMs: nowMs,
             createdAtMs: nowMs,
             endedAtMs: null,
-            playerQueue: [user.uid]
+            playerQueue: [user.uid],
+            nextPlayerUid: null,
+            turnTransitionEndsAtMs: null,
+            playersCompletedTurn: []
           };
 
           transaction.set(roomRef, roomDoc);
@@ -398,6 +402,34 @@ export class FirebaseRoomRepository implements RoomRepository {
         ]);
       }
 
+      this.writeRoomRecord(transaction, roomId, record, previousPlayers);
+    });
+  }
+
+  async completeTurnTransition(roomId: string, actorUid: string) {
+    await runTransaction(this.db, async (transaction) => {
+      const record = await this.readRoomRecord(transaction, roomId);
+      const previousPlayers = clonePlayers(record.players);
+      
+      if (record.room.hostUid !== actorUid) {
+        throw new Error("Only host can complete turn transition.");
+      }
+
+      if (!record.room.nextPlayerUid || !record.room.turnTransitionEndsAtMs) {
+        // No transition in progress
+        return;
+      }
+
+      const transitioned = completeTurnTransitionState(
+        { room: record.room, players: record.players },
+        actorUid,
+        Date.now()
+      );
+
+      record.room = transitioned.room;
+      record.players = transitioned.players;
+
+      this.writeEvents(transaction, roomId, transitioned.events);
       this.writeRoomRecord(transaction, roomId, record, previousPlayers);
     });
   }

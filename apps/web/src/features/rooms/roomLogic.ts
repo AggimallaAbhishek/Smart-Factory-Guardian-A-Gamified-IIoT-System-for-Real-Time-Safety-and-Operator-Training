@@ -8,6 +8,7 @@ import {
   type QueueParticipant
 } from "@guardian/domain";
 import type { AlertType } from "@guardian/protocol";
+import { TURN_TRANSITION_MIN_SEC, TURN_TRANSITION_MAX_SEC } from "./constants";
 import type { LeaderboardEntry, RoomDoc, RoomPlayerDoc } from "./types";
 
 export function createPlayerDocument(uid: string, displayName: string, queueOrder: number, nowMs: number): RoomPlayerDoc {
@@ -56,7 +57,26 @@ export function startTurn(room: RoomDoc, nextUid: string, nowMs: number): RoomDo
     turnStartedAtMs: nowMs,
     turnEndsAtMs: endsAt,
     turnNumber: room.turnNumber + 1,
-    activeAlert: null
+    activeAlert: null,
+    nextPlayerUid: null,
+    turnTransitionEndsAtMs: null
+  };
+}
+
+export function startTurnTransition(room: RoomDoc, nextUid: string, nowMs: number): RoomDoc {
+  const transitionDurationSec = Math.floor(
+    Math.random() * (TURN_TRANSITION_MAX_SEC - TURN_TRANSITION_MIN_SEC + 1) + TURN_TRANSITION_MIN_SEC
+  );
+  const transitionEnds = nowMs + transitionDurationSec * 1000;
+
+  return {
+    ...room,
+    activePlayerUid: null,
+    turnStartedAtMs: null,
+    turnEndsAtMs: null,
+    activeAlert: null,
+    nextPlayerUid: nextUid,
+    turnTransitionEndsAtMs: transitionEnds
   };
 }
 
@@ -136,4 +156,9 @@ export function findEarliestConnectedPlayer(players: RoomPlayerDoc[], hostUid?: 
 
     return left.joinedAtMs - right.joinedAtMs;
   })[0] ?? null;
+}
+
+export function hasAllPlayersCompletedTurn(players: RoomPlayerDoc[], completedPlayerUids: string[], hostUid?: string): boolean {
+  const eligiblePlayers = hostUid ? players.filter((p) => p.uid !== hostUid && p.isConnected) : players.filter((p) => p.isConnected);
+  return eligiblePlayers.every(player => completedPlayerUids.includes(player.uid));
 }

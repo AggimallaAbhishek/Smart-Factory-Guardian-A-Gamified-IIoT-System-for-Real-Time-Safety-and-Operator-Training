@@ -38,7 +38,11 @@ export const roomDocSchema = z
     lastHostHeartbeatMs: z.number().int().nonnegative(),
     createdAtMs: z.number().int().nonnegative(),
     endedAtMs: z.number().int().nonnegative().nullable(),
-    playerQueue: z.array(z.string().min(1)).default([])
+    playerQueue: z.array(z.string().min(1)).default([]),
+    // Turn transition fields
+    nextPlayerUid: z.string().min(1).nullable().default(null),
+    turnTransitionEndsAtMs: z.number().int().nonnegative().nullable().default(null),
+    playersCompletedTurn: z.array(z.string().min(1)).default([])
   })
   .strict();
 

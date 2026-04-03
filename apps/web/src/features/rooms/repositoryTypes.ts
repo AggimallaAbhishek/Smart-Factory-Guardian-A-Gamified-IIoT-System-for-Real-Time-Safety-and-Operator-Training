@@ -10,6 +10,7 @@ export interface RoomRepository {
   startRoom: (roomId: string, actorUid: string) => Promise<void>;
   endRoom: (roomId: string, actorUid: string) => Promise<void>;
   advanceTurn: (roomId: string, actorUid: string, reason: "force" | "timeout" | "disconnect") => Promise<void>;
+  completeTurnTransition: (roomId: string, actorUid: string) => Promise<void>;
   publishAlert: (
     roomId: string,
     actorUid: string,
