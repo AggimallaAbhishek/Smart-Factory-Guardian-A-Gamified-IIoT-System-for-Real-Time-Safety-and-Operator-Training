@@ -52,13 +52,13 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
     stopHardware();
     logger.info("Starting mock signal source", {
       minIntervalMs: 2_000,
-      maxIntervalMs: 4_000
+      maxIntervalMs: 3_000
     });
 
     controllerRef.current = startMock(
       {
         minIntervalMs: 2_000,
-        maxIntervalMs: 4_000
+        maxIntervalMs: 3_000
       },
       {
         onAlert: (alertType, timestampMs) => {
@@ -84,7 +84,7 @@ export function HardwarePanel({ roomRunning, onAlert }: HardwarePanelProps) {
         {status.message}
       </p>
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-white/50">
-        Mock cadence: random every 2-4 sec. Web Bluetooth adapter can be added on this interface later.
+        Mock cadence: random every 2-3 sec. Alert lasts 6 sec before auto-miss.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">

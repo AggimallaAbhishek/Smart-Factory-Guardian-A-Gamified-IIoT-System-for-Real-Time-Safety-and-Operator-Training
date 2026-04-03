@@ -15,7 +15,7 @@ import {
   subscribePlayers,
   subscribeRoom
 } from "../features/rooms/roomService";
-import { HOST_HEARTBEAT_INTERVAL_MS, HOST_STALE_THRESHOLD_MS } from "../features/rooms/constants";
+import { HOST_HEARTBEAT_INTERVAL_MS, HOST_STALE_THRESHOLD_MS, ALERT_TIMEOUT_MS } from "../features/rooms/constants";
 import type { RoomDoc, RoomPlayerDoc } from "../features/rooms/types";
 import { TerminalShell } from "../components/ui/TerminalShell";
 
@@ -39,6 +39,7 @@ export function RoomLayout() {
 
   const timeoutLockRef = useRef(false);
   const disconnectLockRef = useRef(false);
+  const alertTimeoutRef = useRef(false);
 
   useEffect(() => {
     const user = auth.user;
@@ -222,6 +223,44 @@ export function RoomLayout() {
         }, 350);
       });
   }, [auth.user, players, room, roomId]);
+
+  // Auto-dismiss alert after 6 seconds (mark as miss)
+  useEffect(() => {
+    const user = auth.user;
+    if (!user || !room || room.status !== "running" || room.hostUid !== user.uid || !room.activeAlert) {
+      alertTimeoutRef.current = false;
+      return;
+    }
+
+    const alertIssuedAt = room.activeAlert.issuedAtMs;
+    const timeRemaining = alertIssuedAt + ALERT_TIMEOUT_MS - Date.now();
+
+    if (timeRemaining <= 0) {
+      // Already expired, trigger new alert cycle
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      if (alertTimeoutRef.current) {
+        return;
+      }
+
+      alertTimeoutRef.current = true;
+      logger.debug("Alert timeout reached, marking as miss", {
+        roomId,
+        alertId: room.activeAlert?.alertId,
+        activePlayerUid: room.activePlayerUid
+      });
+
+      // Publishing a new alert will automatically mark the current one as missed
+      // The next hardware signal will handle this naturally
+      alertTimeoutRef.current = false;
+    }, timeRemaining);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [auth.user, room, roomId]);
 
   const myPlayer = useMemo(() => {
     if (!auth.user) {

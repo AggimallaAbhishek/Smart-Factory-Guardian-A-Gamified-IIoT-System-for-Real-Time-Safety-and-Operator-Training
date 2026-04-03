@@ -14,7 +14,8 @@ const START_SESSION_DURATION_SEC = 24 * 60 * 60;
 const mockConfigSchema = z
   .object({
     minIntervalMs: z.number().int().min(1_000).max(5_000).default(2_000),
-    maxIntervalMs: z.number().int().min(1_500).max(8_000).default(4_000)
+    maxIntervalMs: z.number().int().min(1_500).max(8_000).default(3_000),
+    alertDurationMs: z.number().int().min(1_000).max(30_000).default(6_000)
   })
   .strict();
 
@@ -28,6 +29,7 @@ export interface BridgeConnectConfig {
 export interface MockConfig {
   minIntervalMs?: number;
   maxIntervalMs?: number;
+  alertDurationMs?: number;
 }
 
 export interface HardwareStatus {
